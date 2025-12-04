@@ -1,0 +1,1130 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="390" onload="init(evt)" viewBox="0 0 1200 390" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="390.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="373" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="373" > </text>
+<g id="frames">
+<g >
+<title>llama_model_loader::load_all_data(ggml_context*, std::unordered_map&lt;unsigned int, ggml_backend_buffer*, std::hash&lt;unsigned int&gt;, std::equal_to&lt;unsigned int&gt;, std::allocator&lt;std::pair&lt;unsigned int const, ggml_backend_buffer*&gt; &gt; &gt;&amp;, std::vector&lt;std::unique_ptr&lt;llama_mlock, std::default_delete&lt;llama_mlock&gt; &gt;, std::allocator&lt;std::unique_ptr&lt;llama_mlock, std::default_delete&lt;llama_mlock&gt; &gt; &gt; &gt;*, bool (*)(float, void*), void*)&lt;00000000000ff900&gt; (1,946 samples, 0.87%)</title><rect x="588.5" y="213" width="10.3" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="591.47" y="223.5" ></text>
+</g>
+<g >
+<title>ggml_threadpool_chunk_add&lt;0000000000010600&gt; (597 samples, 0.27%)</title><rect x="447.3" y="229" width="3.1" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="450.26" y="239.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (2,074 samples, 0.93%)</title><rect x="451.0" y="229" width="11.0" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="453.96" y="239.5" ></text>
+</g>
+<g >
+<title>start_thread&lt;0000000000089e80&gt; (106,807 samples, 48.02%)</title><rect x="10.0" y="309" width="566.6" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="13.00" y="319.5" >start_thread&lt;0000000000089e80&gt;</text>
+</g>
+<g >
+<title>__pthread_once_slow&lt;000000000008f2c0&gt; (831 samples, 0.37%)</title><rect x="10.2" y="261" width="4.4" height="15.0" fill="rgb(214,43,10)" rx="2" ry="2" />
+<text  x="13.16" y="271.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_mul_mat&lt;0000000000012ce0&gt; (20,452 samples, 9.19%)</title><rect x="18.5" y="261" width="108.5" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="21.54" y="271.5" >ggml_compute_..</text>
+</g>
+<g >
+<title>std::thread::join()&lt;00000000000eb3d0&gt; (184 samples, 0.08%)</title><rect x="1179.6" y="117" width="1.0" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1182.62" y="127.5" ></text>
+</g>
+<g >
+<title>ggml_vec_dot_q6_K_q8_K&lt;00000000000cd490&gt; (16,325 samples, 7.34%)</title><rect x="29.1" y="245" width="86.6" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="32.13" y="255.5" >ggml_vec_d..</text>
+</g>
+<g >
+<title>__memset_avx512_unaligned_erms&lt;0000000000191340&gt; (1,248 samples, 0.56%)</title><rect x="599.8" y="101" width="6.7" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="602.83" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_quantize_mat_q8_K_4x8&lt;00000000000d4710&gt; (487 samples, 0.22%)</title><rect x="444.6" y="229" width="2.6" height="15.0" fill="rgb(229,112,26)" rx="2" ry="2" />
+<text  x="447.63" y="239.5" ></text>
+</g>
+<g >
+<title>ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer*, ggml_tensor*, void const*, unsigned long, unsigned long)&lt;000000000001a760&gt; (1,944 samples, 0.87%)</title><rect x="588.5" y="197" width="10.3" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="591.47" y="207.5" ></text>
+</g>
+<g >
+<title>quantize_row_q8_K_ref&lt;000000000005e2c0&gt; (56 samples, 0.03%)</title><rect x="585.3" y="85" width="0.3" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="588.32" y="95.5" ></text>
+</g>
+<g >
+<title>ggml_gemv_q4_K_8x8_q8_K&lt;00000000000d51b0&gt; (737 samples, 0.33%)</title><rect x="581.2" y="85" width="4.0" height="15.0" fill="rgb(242,172,41)" rx="2" ry="2" />
+<text  x="584.25" y="95.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_dup_bytes(ggml_compute_params const*, ggml_tensor*)&lt;0000000000060920&gt; (59 samples, 0.03%)</title><rect x="16.7" y="261" width="0.3" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="19.71" y="271.5" ></text>
+</g>
+<g >
+<title>llama_model_loader::llama_model_loader(std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;&amp;, bool, bool, llama_model_kv_override const*, llama_model_tensor_buft_override const*) (57 samples, 0.03%)</title><rect x="599.4" y="229" width="0.3" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="602.41" y="239.5" ></text>
+</g>
+<g >
+<title>ggml_threadpool_chunk_add&lt;0000000000010600&gt; (31 samples, 0.01%)</title><rect x="119.0" y="213" width="0.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="121.99" y="223.5" ></text>
+</g>
+<g >
+<title>__pthread_once_slow&lt;000000000008f2c0&gt; (189 samples, 0.08%)</title><rect x="1179.6" y="133" width="1.0" height="15.0" fill="rgb(214,43,10)" rx="2" ry="2" />
+<text  x="1182.59" y="143.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (13,926 samples, 6.26%)</title><rect x="464.2" y="229" width="73.8" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="467.17" y="239.5" >do_spin[..</text>
+</g>
+<g >
+<title>do_spin[inline] (35 samples, 0.02%)</title><rect x="1188.6" y="37" width="0.2" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="1191.63" y="47.5" ></text>
+</g>
+<g >
+<title>gomp_simple_barrier_wait[inline] (23 samples, 0.01%)</title><rect x="1189.8" y="101" width="0.1" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="1192.81" y="111.5" ></text>
+</g>
+<g >
+<title>llama_init_from_model&lt;00000000000a8ac0&gt; (19 samples, 0.01%)</title><rect x="588.2" y="261" width="0.1" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="591.19" y="271.5" ></text>
+</g>
+<g >
+<title>__GI___nptl_deallocate_stack (183 samples, 0.08%)</title><rect x="1179.6" y="69" width="1.0" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="1182.62" y="79.5" ></text>
+</g>
+<g >
+<title>llama_model::load_vocab(llama_model_loader&amp;)&lt;000000000010cde0&gt; (116 samples, 0.05%)</title><rect x="598.8" y="229" width="0.6" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="601.80" y="239.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait&lt;00000000000254a0&gt; (100 samples, 0.04%)</title><rect x="450.4" y="229" width="0.6" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="453.43" y="239.5" ></text>
+</g>
+<g >
+<title>ggml::cpu::repack::tensor_traits&lt;block_q4_K, 8l, 8l, (ggml_type)15&gt;::compute_forward(ggml_compute_params*, ggml_tensor*) (825 samples, 0.37%)</title><rect x="581.2" y="101" width="4.4" height="15.0" fill="rgb(249,202,48)" rx="2" ry="2" />
+<text  x="584.24" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_dup_bytes(ggml_compute_params const*, ggml_tensor*)&lt;0000000000060920&gt; (56 samples, 0.03%)</title><rect x="1181.9" y="101" width="0.3" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="1184.92" y="111.5" ></text>
+</g>
+<g >
+<title>llama_decode&lt;00000000000a9ed0&gt; (111,275 samples, 50.02%)</title><rect x="599.7" y="245" width="590.3" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="602.71" y="255.5" >llama_decode&lt;00000000000a9ed0&gt;</text>
+</g>
+<g >
+<title>ggml_graph_compute_thread.isra.0&lt;0000000000014100&gt; (2,183 samples, 0.98%)</title><rect x="576.6" y="133" width="11.6" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="579.59" y="143.5" ></text>
+</g>
+<g >
+<title>void (anonymous namespace)::tinyBLAS&lt;16, float __vector(16), float __vector(16), unsigned short, unsigned short, float&gt;::gemm&lt;4, 6, 4&gt;(long, long, long) [clone .constprop.0] (1,470 samples, 0.66%)</title><rect x="119.0" y="229" width="7.8" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="121.98" y="239.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (13,957 samples, 6.27%)</title><rect x="464.1" y="261" width="74.0" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="467.07" y="271.5" >gomp_tea..</text>
+</g>
+<g >
+<title>__clone3 (106,807 samples, 48.02%)</title><rect x="10.0" y="325" width="566.6" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="13.00" y="335.5" >__clone3</text>
+</g>
+<g >
+<title>llama_context::process_ubatch(llama_ubatch const&amp;, llm_graph_type, llama_memory_context_i*, ggml_status&amp;)&lt;00000000000a3250&gt; (111,275 samples, 50.02%)</title><rect x="599.7" y="213" width="590.3" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="602.71" y="223.5" >llama_context::process_ubatch(llama_ubatch const&amp;, llm_graph_type, llama_memory_c..</text>
+</g>
+<g >
+<title>ggml_cpu_fp32_to_fp16&lt;0000000000010290&gt; (487 samples, 0.22%)</title><rect x="22.7" y="245" width="2.6" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="25.69" y="255.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait&lt;00000000000254a0&gt; (121 samples, 0.05%)</title><rect x="115.7" y="245" width="0.7" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="118.73" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_vec_dot_q6_K_q8_K&lt;00000000000cd490&gt; (699 samples, 0.31%)</title><rect x="577.2" y="101" width="3.7" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="580.18" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_add_non_quantized&lt;0000000000035130&gt; (234 samples, 0.11%)</title><rect x="15.5" y="261" width="1.2" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="18.47" y="271.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait&lt;00000000000254a0&gt; (393 samples, 0.18%)</title><rect x="462.0" y="261" width="2.1" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="464.98" y="271.5" ></text>
+</g>
+<g >
+<title>gguf_kv_to_str[abi:cxx11](gguf_context const*, int)&lt;00000000000db000&gt; (33 samples, 0.01%)</title><rect x="599.5" y="213" width="0.2" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="602.54" y="223.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (35 samples, 0.02%)</title><rect x="1188.6" y="69" width="0.2" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="1191.63" y="79.5" ></text>
+</g>
+<g >
+<title>ggml::cpu::repack::extra_buffer_type::get_tensor_traits(ggml_tensor const*)&lt;000000000002eba0&gt; (24 samples, 0.01%)</title><rect x="132.2" y="245" width="0.1" height="15.0" fill="rgb(229,111,26)" rx="2" ry="2" />
+<text  x="135.18" y="255.5" ></text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (48 samples, 0.02%)</title><rect x="1181.9" y="85" width="0.3" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1184.94" y="95.5" ></text>
+</g>
+<g >
+<title>gomp_barrier_wait_start[inline] (121 samples, 0.05%)</title><rect x="115.7" y="229" width="0.7" height="15.0" fill="rgb(218,62,15)" rx="2" ry="2" />
+<text  x="118.73" y="239.5" ></text>
+</g>
+<g >
+<title>llama_vocab::impl::token_to_piece_for_cache[abi:cxx11](int, bool) const&lt;0000000000175ad0&gt; (38 samples, 0.02%)</title><rect x="599.0" y="197" width="0.2" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="601.96" y="207.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_glu&lt;000000000009a380&gt; (180 samples, 0.08%)</title><rect x="17.0" y="261" width="1.0" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="20.03" y="271.5" ></text>
+</g>
+<g >
+<title>__pthread_create_2_1 (213 samples, 0.10%)</title><rect x="1180.6" y="117" width="1.1" height="15.0" fill="rgb(242,172,41)" rx="2" ry="2" />
+<text  x="1183.59" y="127.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (465 samples, 0.21%)</title><rect x="585.7" y="101" width="2.4" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="588.67" y="111.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (421 samples, 0.19%)</title><rect x="116.4" y="229" width="2.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="119.39" y="239.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (67 samples, 0.03%)</title><rect x="118.6" y="229" width="0.4" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="121.63" y="239.5" ></text>
+</g>
+<g >
+<title>sgemm_beta_COOPERLAKE&lt;0000000001348da0&gt; (1,249 samples, 0.56%)</title><rect x="599.8" y="117" width="6.7" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="602.82" y="127.5" ></text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (271 samples, 0.12%)</title><rect x="21.2" y="245" width="1.4" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="24.16" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_vec_dot_f16&lt;000000000005dc50&gt; (717 samples, 0.32%)</title><rect x="25.3" y="245" width="3.8" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="28.33" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_mul_mat&lt;0000000000012ce0&gt; (56 samples, 0.03%)</title><rect x="1182.3" y="101" width="0.3" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="1185.30" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_gemm_q4_K_8x8_q8_K&lt;00000000000d63a0&gt; (31,228 samples, 14.04%)</title><rect x="132.7" y="229" width="165.6" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="135.69" y="239.5" >ggml_gemm_q4_K_8x8_q8..</text>
+</g>
+<g >
+<title>GOMP_parallel&lt;0000000000018910&gt; (2,183 samples, 0.98%)</title><rect x="576.6" y="149" width="11.6" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="579.59" y="159.5" ></text>
+</g>
+<g >
+<title>ggml_cpu_fp32_to_fp16&lt;0000000000010290&gt; (200 samples, 0.09%)</title><rect x="128.9" y="245" width="1.1" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="131.92" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_rms_norm&lt;000000000007d710&gt; (24 samples, 0.01%)</title><rect x="581.0" y="117" width="0.1" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="583.98" y="127.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_rms_norm&lt;000000000007d710&gt; (51 samples, 0.02%)</title><rect x="1182.6" y="101" width="0.3" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="1185.59" y="111.5" ></text>
+</g>
+<g >
+<title>std::__future_base::_Async_state_commonV2::_M_complete_async()&lt;0000000000103d00&gt; (189 samples, 0.08%)</title><rect x="1179.6" y="149" width="1.0" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="1182.59" y="159.5" ></text>
+</g>
+<g >
+<title>ggml_backend_cpu_graph_compute(ggml_backend*, ggml_cgraph*)&lt;0000000000016ed0&gt; (2,186 samples, 0.98%)</title><rect x="576.6" y="181" width="11.6" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="579.59" y="191.5" ></text>
+</g>
+<g >
+<title>__GI___munmap (180 samples, 0.08%)</title><rect x="1179.6" y="37" width="1.0" height="15.0" fill="rgb(240,161,38)" rx="2" ry="2" />
+<text  x="1182.62" y="47.5" ></text>
+</g>
+<g >
+<title>gomp_team_start&lt;0000000000022a30&gt; (31 samples, 0.01%)</title><rect x="1189.8" y="117" width="0.1" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1192.77" y="127.5" ></text>
+</g>
+<g >
+<title>ggml_graph_compute&lt;0000000000016ac0&gt; (2,184 samples, 0.98%)</title><rect x="576.6" y="165" width="11.6" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="579.59" y="175.5" ></text>
+</g>
+<g >
+<title>sgemm_kernel_COOPERLAKE&lt;0000000001340710&gt; (102,913 samples, 46.27%)</title><rect x="625.1" y="117" width="545.9" height="15.0" fill="rgb(236,147,35)" rx="2" ry="2" />
+<text  x="628.06" y="127.5" >sgemm_kernel_COOPERLAKE&lt;0000000001340710&gt;</text>
+</g>
+<g >
+<title>llama_vocab::impl::load(llama_model_loader&amp;, LLM_KV const&amp;)&lt;0000000000179060&gt; (116 samples, 0.05%)</title><rect x="598.8" y="213" width="0.6" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="601.80" y="223.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (13,926 samples, 6.26%)</title><rect x="464.2" y="245" width="73.8" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="467.17" y="255.5" >do_wait[..</text>
+</g>
+<g >
+<title>ggml_compute_forward_soft_max&lt;00000000000839c0&gt; (22 samples, 0.01%)</title><rect x="581.1" y="117" width="0.1" height="15.0" fill="rgb(212,33,7)" rx="2" ry="2" />
+<text  x="584.12" y="127.5" ></text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (149 samples, 0.07%)</title><rect x="128.0" y="245" width="0.8" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="130.96" y="255.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (6,744 samples, 3.03%)</title><rect x="540.7" y="245" width="35.8" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="543.75" y="255.5" >do_..</text>
+</g>
+<g >
+<title>do_spin[inline] (6,705 samples, 3.01%)</title><rect x="540.7" y="229" width="35.6" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="543.75" y="239.5" >do_..</text>
+</g>
+<g >
+<title>test_prompt(llama_context*, int, int, int)&lt;0000000000418a90&gt; (111,275 samples, 50.02%)</title><rect x="599.7" y="261" width="590.3" height="15.0" fill="rgb(251,216,51)" rx="2" ry="2" />
+<text  x="602.71" y="271.5" >test_prompt(llama_context*, int, int, int)&lt;0000000000418a90&gt;</text>
+</g>
+<g >
+<title>__memset_avx512_unaligned_erms&lt;0000000000191340&gt; (141 samples, 0.06%)</title><rect x="126.0" y="197" width="0.8" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="129.03" y="207.5" ></text>
+</g>
+<g >
+<title>std::thread::_M_start_thread(std::unique_ptr&lt;std::thread::_State, std::default_delete&lt;std::thread::_State&gt; &gt;, void (*)())&lt;00000000000eb430&gt; (213 samples, 0.10%)</title><rect x="1180.6" y="149" width="1.1" height="15.0" fill="rgb(215,50,12)" rx="2" ry="2" />
+<text  x="1183.59" y="159.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_add_non_quantized&lt;0000000000035130&gt; (19 samples, 0.01%)</title><rect x="1181.8" y="101" width="0.1" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="1184.81" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_gemv_q4_K_8x8_q8_K&lt;00000000000d51b0&gt; (27,574 samples, 12.40%)</title><rect x="298.3" y="229" width="146.3" height="15.0" fill="rgb(242,172,41)" rx="2" ry="2" />
+<text  x="301.35" y="239.5" >ggml_gemv_q4_K_8x8..</text>
+</g>
+<g >
+<title>ggml_backend_sched_graph_compute_async&lt;0000000000031530&gt; (111,273 samples, 50.02%)</title><rect x="599.7" y="181" width="590.3" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="602.71" y="191.5" >ggml_backend_sched_graph_compute_async&lt;0000000000031530&gt;</text>
+</g>
+<g >
+<title>__libc_start_call_main&lt;0000000000029550&gt; (115,635 samples, 51.98%)</title><rect x="576.6" y="293" width="613.4" height="15.0" fill="rgb(225,96,22)" rx="2" ry="2" />
+<text  x="579.58" y="303.5" >__libc_start_call_main&lt;0000000000029550&gt;</text>
+</g>
+<g >
+<title>llama_model_free&lt;000000000010ffa0&gt; (31 samples, 0.01%)</title><rect x="588.3" y="261" width="0.2" height="15.0" fill="rgb(246,188,45)" rx="2" ry="2" />
+<text  x="591.29" y="271.5" ></text>
+</g>
+<g >
+<title>gguf_init_from_file_impl(_IO_FILE*, gguf_init_params)&lt;0000000000070480&gt; (21 samples, 0.01%)</title><rect x="599.4" y="197" width="0.1" height="15.0" fill="rgb(212,35,8)" rx="2" ry="2" />
+<text  x="602.43" y="207.5" ></text>
+</g>
+<g >
+<title>llama_context::process_ubatch(llama_ubatch const&amp;, llm_graph_type, llama_memory_context_i*, ggml_status&amp;)&lt;00000000000a3250&gt; (2,186 samples, 0.98%)</title><rect x="576.6" y="229" width="11.6" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="579.59" y="239.5" ></text>
+</g>
+<g >
+<title>llama_context::decode(llama_batch const&amp;)&lt;00000000000a8da0&gt; (111,275 samples, 50.02%)</title><rect x="599.7" y="229" width="590.3" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="602.71" y="239.5" >llama_context::decode(llama_batch const&amp;)&lt;00000000000a8da0&gt;</text>
+</g>
+<g >
+<title>do_wait[inline] (2,072 samples, 0.93%)</title><rect x="451.0" y="213" width="11.0" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="453.97" y="223.5" ></text>
+</g>
+<g >
+<title>void (anonymous namespace)::tinyBLAS&lt;16, float __vector(16), float __vector(16), unsigned short, unsigned short, float&gt;::gemm_bloc&lt;4, 5&gt;(long, long) (47 samples, 0.02%)</title><rect x="119.5" y="213" width="0.2" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="122.45" y="223.5" ></text>
+</g>
+<g >
+<title>_start&lt;00000000004163b0&gt; (115,635 samples, 51.98%)</title><rect x="576.6" y="325" width="613.4" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="579.58" y="335.5" >_start&lt;00000000004163b0&gt;</text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (468 samples, 0.21%)</title><rect x="585.7" y="117" width="2.4" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="588.66" y="127.5" ></text>
+</g>
+<g >
+<title>std::_Function_handler&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; (), std::__future_base::_Task_setter&lt;std::unique_ptr&lt;std::__future_base::_Result&lt;void&gt;, std::__future_base::_Result_base::_Deleter&gt;, std::thread::_Invoker&lt;std::tuple&lt;ggml_backend_blas_mul_mat(ggml_backend_blas_context*, ggml_tensor*)::{lambda()#1}&gt; &gt;, void&gt; &gt;::_M_invoke(std::_Any_data const&amp;) (828 samples, 0.37%)</title><rect x="10.2" y="229" width="4.4" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="13.18" y="239.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_rms_norm&lt;000000000007d710&gt; (324 samples, 0.15%)</title><rect x="127.0" y="261" width="1.8" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="130.03" y="271.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_add_non_quantized&lt;0000000000035130&gt; (31 samples, 0.01%)</title><rect x="576.6" y="117" width="0.2" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="579.61" y="127.5" ></text>
+</g>
+<g >
+<title>llama_context::llama_context(llama_model const&amp;, llama_context_params) (19 samples, 0.01%)</title><rect x="588.2" y="245" width="0.1" height="15.0" fill="rgb(251,213,50)" rx="2" ry="2" />
+<text  x="591.19" y="255.5" ></text>
+</g>
+<g >
+<title>llama_vocab::impl::token_to_piece(int, char*, int, int, bool) const&lt;0000000000174f60&gt; (35 samples, 0.02%)</title><rect x="599.0" y="181" width="0.1" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="601.96" y="191.5" ></text>
+</g>
+<g >
+<title>ggml_backend_blas_graph_compute(ggml_backend*, ggml_cgraph*)&lt;0000000000005650&gt; (109,714 samples, 49.32%)</title><rect x="599.7" y="165" width="582.0" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="602.72" y="175.5" >ggml_backend_blas_graph_compute(ggml_backend*, ggml_cgraph*)&lt;0000000000005650&gt;</text>
+</g>
+<g >
+<title>ggml_cpu_extra_compute_forward&lt;0000000000035030&gt; (825 samples, 0.37%)</title><rect x="581.2" y="117" width="4.4" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="584.24" y="127.5" ></text>
+</g>
+<g >
+<title>cblas_sgemm&lt;000000000018a7b0&gt; (109,297 samples, 49.14%)</title><rect x="599.7" y="149" width="579.8" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="602.73" y="159.5" >cblas_sgemm&lt;000000000018a7b0&gt;</text>
+</g>
+<g >
+<title>f64xsubf128@@GLIBC_2.28&lt;0000000000068990&gt; (118 samples, 0.05%)</title><rect x="540.1" y="245" width="0.6" height="15.0" fill="rgb(220,73,17)" rx="2" ry="2" />
+<text  x="543.08" y="255.5" ></text>
+</g>
+<g >
+<title>ggml::cpu::repack::tensor_traits&lt;block_q4_K, 8l, 8l, (ggml_type)15&gt;::compute_forward(ggml_compute_params*, ggml_tensor*) (62,143 samples, 27.94%)</title><rect x="132.3" y="245" width="329.7" height="15.0" fill="rgb(249,202,48)" rx="2" ry="2" />
+<text  x="135.31" y="255.5" >ggml::cpu::repack::tensor_traits&lt;block_q4_K,..</text>
+</g>
+<g >
+<title>llama_context::decode(llama_batch const&amp;)&lt;00000000000a8da0&gt; (2,187 samples, 0.98%)</title><rect x="576.6" y="245" width="11.6" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="579.58" y="255.5" ></text>
+</g>
+<g >
+<title>llama_model::~llama_model() (31 samples, 0.01%)</title><rect x="588.3" y="245" width="0.2" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="591.29" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_mul&lt;000000000003d9b0&gt; (104 samples, 0.05%)</title><rect x="18.0" y="261" width="0.5" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="20.99" y="271.5" ></text>
+</g>
+<g >
+<title>llama_context::graph_compute(ggml_cgraph*, bool)&lt;00000000000a1a60&gt; (111,273 samples, 50.02%)</title><rect x="599.7" y="197" width="590.3" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="602.71" y="207.5" >llama_context::graph_compute(ggml_cgraph*, bool)&lt;00000000000a1a60&gt;</text>
+</g>
+<g >
+<title>quantize_row_q8_K_ref&lt;000000000005e2c0&gt; (48 samples, 0.02%)</title><rect x="126.8" y="245" width="0.2" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="129.78" y="255.5" ></text>
+</g>
+<g >
+<title>llamafile_sgemm&lt;00000000000ca750&gt; (1,538 samples, 0.69%)</title><rect x="118.6" y="245" width="8.2" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="121.62" y="255.5" ></text>
+</g>
+<g >
+<title>dequantize_row_q6_K&lt;0000000000059190&gt; (814 samples, 0.37%)</title><rect x="10.2" y="213" width="4.3" height="15.0" fill="rgb(243,175,41)" rx="2" ry="2" />
+<text  x="13.18" y="223.5" ></text>
+</g>
+<g >
+<title>gomp_barrier_wait_start[inline] (100 samples, 0.04%)</title><rect x="450.4" y="213" width="0.6" height="15.0" fill="rgb(218,62,15)" rx="2" ry="2" />
+<text  x="453.43" y="223.5" ></text>
+</g>
+<g >
+<title>__nptl_free_stacks&lt;00000000000874e0&gt; (183 samples, 0.08%)</title><rect x="1179.6" y="53" width="1.0" height="15.0" fill="rgb(220,71,17)" rx="2" ry="2" />
+<text  x="1182.62" y="63.5" ></text>
+</g>
+<g >
+<title>std::thread::_M_start_thread(std::unique_ptr&lt;std::thread::_State, std::default_delete&lt;std::thread::_State&gt; &gt;, void (*)())&lt;00000000000eb430&gt;[inline] (213 samples, 0.10%)</title><rect x="1180.6" y="133" width="1.1" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="1183.59" y="143.5" ></text>
+</g>
+<g >
+<title>sgemm_incopy_COOPERLAKE&lt;0000000001348fd0&gt; (3,508 samples, 1.58%)</title><rect x="606.5" y="117" width="18.6" height="15.0" fill="rgb(242,172,41)" rx="2" ry="2" />
+<text  x="609.45" y="127.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (47 samples, 0.02%)</title><rect x="119.2" y="213" width="0.3" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="122.20" y="223.5" ></text>
+</g>
+<g >
+<title>GOMP_parallel&lt;0000000000018910&gt; (1,547 samples, 0.70%)</title><rect x="1181.7" y="133" width="8.2" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="1184.72" y="143.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_set_rows&lt;00000000000829f0&gt; (229 samples, 0.10%)</title><rect x="128.8" y="261" width="1.2" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="131.77" y="271.5" ></text>
+</g>
+<g >
+<title>ggml_backend_sched_graph_compute_async&lt;0000000000031530&gt; (2,186 samples, 0.98%)</title><rect x="576.6" y="197" width="11.6" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="579.59" y="207.5" ></text>
+</g>
+<g >
+<title>__libc_start_main_alias_2 (115,635 samples, 51.98%)</title><rect x="576.6" y="309" width="613.4" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="579.58" y="319.5" >__libc_start_main_alias_2</text>
+</g>
+<g >
+<title>ggml_cpu_extra_compute_forward&lt;0000000000035030&gt; (62,172 samples, 27.95%)</title><rect x="132.2" y="261" width="329.8" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="135.15" y="271.5" >ggml_cpu_extra_compute_forward&lt;0000000000035..</text>
+</g>
+<g >
+<title>void (anonymous namespace)::tinyBLAS&lt;16, float __vector(16), float __vector(16), unsigned short, unsigned short, float&gt;::gemm_bloc&lt;4, 6&gt;(long, long) (29 samples, 0.01%)</title><rect x="1182.4" y="53" width="0.2" height="15.0" fill="rgb(210,27,6)" rx="2" ry="2" />
+<text  x="1185.44" y="63.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_soft_max&lt;00000000000839c0&gt; (409 samples, 0.18%)</title><rect x="130.0" y="261" width="2.2" height="15.0" fill="rgb(212,33,7)" rx="2" ry="2" />
+<text  x="132.98" y="271.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (421 samples, 0.19%)</title><rect x="116.4" y="213" width="2.2" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="119.39" y="223.5" ></text>
+</g>
+<g >
+<title>unicode_utf8_to_byte(std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;)&lt;000000000018e840&gt; (22 samples, 0.01%)</title><rect x="599.0" y="165" width="0.1" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="602.03" y="175.5" ></text>
+</g>
+<g >
+<title>ggml_graph_compute_thread.isra.0&lt;0000000000014100&gt; (99,163 samples, 44.58%)</title><rect x="14.7" y="277" width="526.0" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="17.69" y="287.5" >ggml_graph_compute_thread.isra.0&lt;0000000000014100&gt;</text>
+</g>
+<g >
+<title>ggml_graph_compute&lt;0000000000016ac0&gt; (1,550 samples, 0.70%)</title><rect x="1181.7" y="149" width="8.2" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="1184.72" y="159.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (44 samples, 0.02%)</title><rect x="119.2" y="181" width="0.2" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="122.21" y="191.5" ></text>
+</g>
+<g >
+<title>std::__future_base::_Async_state_impl&lt;std::thread::_Invoker&lt;std::tuple&lt;ggml_backend_blas_mul_mat(ggml_backend_blas_context*, ggml_tensor*)::{lambda()#1}&gt; &gt;, void&gt;::_M_run() (831 samples, 0.37%)</title><rect x="10.2" y="277" width="4.4" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="13.16" y="287.5" ></text>
+</g>
+<g >
+<title>futex_wait[inline] (39 samples, 0.02%)</title><rect x="576.3" y="229" width="0.2" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="579.31" y="239.5" ></text>
+</g>
+<g >
+<title>all (222,442 samples, 100%)</title><rect x="10.0" y="341" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="351.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (465 samples, 0.21%)</title><rect x="585.7" y="85" width="2.4" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="588.67" y="95.5" ></text>
+</g>
+<g >
+<title>repack_q4_K_to_q4_K_8_bl(ggml_tensor*, int, void const*, unsigned long)&lt;00000000000193d0&gt; (1,944 samples, 0.87%)</title><rect x="588.5" y="181" width="10.3" height="15.0" fill="rgb(208,14,3)" rx="2" ry="2" />
+<text  x="591.47" y="191.5" ></text>
+</g>
+<g >
+<title>ggml_cpu_extra_compute_forward&lt;0000000000035030&gt; (1,109 samples, 0.50%)</title><rect x="1182.9" y="101" width="5.9" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="1185.93" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_graph_compute._omp_fn.0&lt;0000000000015850&gt; (21 samples, 0.01%)</title><rect x="14.6" y="277" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="17.58" y="287.5" ></text>
+</g>
+<g >
+<title>ggml_compute_forward_mul_mat&lt;0000000000012ce0&gt; (778 samples, 0.35%)</title><rect x="576.9" y="117" width="4.1" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="579.85" y="127.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (2,072 samples, 0.93%)</title><rect x="451.0" y="197" width="11.0" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="453.97" y="207.5" ></text>
+</g>
+<g >
+<title>ggml_threadpool_chunk_add&lt;0000000000010600&gt; (19 samples, 0.01%)</title><rect x="585.2" y="85" width="0.1" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="588.16" y="95.5" ></text>
+</g>
+<g >
+<title>gguf_init_from_file&lt;00000000000718e0&gt; (21 samples, 0.01%)</title><rect x="599.4" y="213" width="0.1" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="602.43" y="223.5" ></text>
+</g>
+<g >
+<title>gomp_barrier_wait_end&lt;0000000000025180&gt; (6,744 samples, 3.03%)</title><rect x="540.7" y="261" width="35.8" height="15.0" fill="rgb(228,106,25)" rx="2" ry="2" />
+<text  x="543.75" y="271.5" >gom..</text>
+</g>
+<g >
+<title>std::__future_base::_State_baseV2::_M_do_set(std::function&lt;std::unique_ptr&lt;std::__future_base::_Result_base, std::__future_base::_Result_base::_Deleter&gt; ()&gt;*, bool*)&lt;0000000000103e90&gt; (828 samples, 0.37%)</title><rect x="10.2" y="245" width="4.4" height="15.0" fill="rgb(208,17,4)" rx="2" ry="2" />
+<text  x="13.18" y="255.5" ></text>
+</g>
+<g >
+<title>ggml_backend_cpu_graph_compute(ggml_backend*, ggml_cgraph*)&lt;0000000000016ed0&gt; (1,558 samples, 0.70%)</title><rect x="1181.7" y="165" width="8.3" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="1184.72" y="175.5" ></text>
+</g>
+<g >
+<title>llama_vocab::~llama_vocab() (29 samples, 0.01%)</title><rect x="588.3" y="229" width="0.2" height="15.0" fill="rgb(237,148,35)" rx="2" ry="2" />
+<text  x="591.30" y="239.5" ></text>
+</g>
+<g >
+<title>void (anonymous namespace)::tinyBLAS&lt;16, float __vector(16), float __vector(16), unsigned short, unsigned short, float&gt;::gemm&lt;4, 6, 4&gt;(long, long, long) [clone .constprop.0] (33 samples, 0.01%)</title><rect x="1182.4" y="69" width="0.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="1185.42" y="79.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (424 samples, 0.19%)</title><rect x="116.4" y="245" width="2.2" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="119.37" y="255.5" ></text>
+</g>
+<g >
+<title>__GI___mprotect (22 samples, 0.01%)</title><rect x="1181.6" y="101" width="0.1" height="15.0" fill="rgb(243,175,41)" rx="2" ry="2" />
+<text  x="1184.60" y="111.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (66 samples, 0.03%)</title><rect x="118.6" y="213" width="0.4" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="121.63" y="223.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (35 samples, 0.02%)</title><rect x="1188.6" y="53" width="0.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="1191.63" y="63.5" ></text>
+</g>
+<g >
+<title>sgemm_tn&lt;000000000021a200&gt; (109,295 samples, 49.13%)</title><rect x="599.7" y="133" width="579.8" height="15.0" fill="rgb(222,82,19)" rx="2" ry="2" />
+<text  x="602.74" y="143.5" >sgemm_tn&lt;000000000021a200&gt;</text>
+</g>
+<g >
+<title>gomp_barrier_wait_start[inline] (393 samples, 0.18%)</title><rect x="462.0" y="245" width="2.1" height="15.0" fill="rgb(218,62,15)" rx="2" ry="2" />
+<text  x="464.98" y="255.5" ></text>
+</g>
+<g >
+<title>llama_model_load_from_file_impl(std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;&amp;, llama_model_params)&lt;00000000000861e0&gt; (2,123 samples, 0.95%)</title><rect x="588.5" y="245" width="11.2" height="15.0" fill="rgb(248,198,47)" rx="2" ry="2" />
+<text  x="591.45" y="255.5" ></text>
+</g>
+<g >
+<title>llama_decode&lt;00000000000a9ed0&gt; (2,187 samples, 0.98%)</title><rect x="576.6" y="261" width="11.6" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="579.58" y="271.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (44 samples, 0.02%)</title><rect x="119.2" y="197" width="0.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="122.21" y="207.5" ></text>
+</g>
+<g >
+<title>ggml_vec_swiglu_f32&lt;000000000005dfc0&gt; (179 samples, 0.08%)</title><rect x="17.0" y="245" width="1.0" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="20.04" y="255.5" ></text>
+</g>
+<g >
+<title>void ggml_compute_forward_rope_flt&lt;float&gt;(ggml_compute_params const*, ggml_tensor*, bool)&lt;0000000000062c10&gt; (495 samples, 0.22%)</title><rect x="538.1" y="261" width="2.6" height="15.0" fill="rgb(228,108,25)" rx="2" ry="2" />
+<text  x="541.10" y="271.5" ></text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (45 samples, 0.02%)</title><rect x="16.7" y="245" width="0.3" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="19.74" y="255.5" ></text>
+</g>
+<g >
+<title>llama_model::load_tensors(llama_model_loader&amp;)&lt;000000000011a010&gt; (1,949 samples, 0.88%)</title><rect x="588.5" y="229" width="10.3" height="15.0" fill="rgb(250,209,49)" rx="2" ry="2" />
+<text  x="591.46" y="239.5" ></text>
+</g>
+<g >
+<title>__pthread_clockjoin_ex&lt;000000000008bb60&gt; (184 samples, 0.08%)</title><rect x="1179.6" y="85" width="1.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="1182.62" y="95.5" ></text>
+</g>
+<g >
+<title>llama_model_load_from_file&lt;0000000000087350&gt; (2,123 samples, 0.95%)</title><rect x="588.5" y="261" width="11.2" height="15.0" fill="rgb(249,206,49)" rx="2" ry="2" />
+<text  x="591.45" y="271.5" ></text>
+</g>
+<g >
+<title>void (anonymous namespace)::tinyBLAS&lt;16, float __vector(16), float __vector(16), unsigned short, unsigned short, float&gt;::gemm_bloc&lt;4, 6&gt;(long, long) (1,334 samples, 0.60%)</title><rect x="119.7" y="213" width="7.1" height="15.0" fill="rgb(210,27,6)" rx="2" ry="2" />
+<text  x="122.70" y="223.5" ></text>
+</g>
+<g >
+<title>main&lt;0000000000414580&gt; (115,635 samples, 51.98%)</title><rect x="576.6" y="277" width="613.4" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="579.58" y="287.5" >main&lt;0000000000414580&gt;</text>
+</g>
+<g >
+<title>execute_native_thread_routine&lt;00000000000eb360&gt; (832 samples, 0.37%)</title><rect x="10.2" y="293" width="4.4" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="13.16" y="303.5" ></text>
+</g>
+<g >
+<title>llamafile_sgemm&lt;00000000000ca750&gt; (37 samples, 0.02%)</title><rect x="1182.4" y="85" width="0.2" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="1185.40" y="95.5" ></text>
+</g>
+<g >
+<title>gomp_barrier_wait_end&lt;0000000000025180&gt;[inline] (23 samples, 0.01%)</title><rect x="1189.8" y="69" width="0.1" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="1192.81" y="79.5" ></text>
+</g>
+<g >
+<title>ggml_quantize_mat_q8_K_4x8&lt;00000000000d4710&gt; (61 samples, 0.03%)</title><rect x="1188.3" y="69" width="0.3" height="15.0" fill="rgb(229,112,26)" rx="2" ry="2" />
+<text  x="1191.30" y="79.5" ></text>
+</g>
+<g >
+<title>sgemm_oncopy_COOPERLAKE&lt;0000000001349d80&gt; (1,609 samples, 0.72%)</title><rect x="1171.0" y="117" width="8.5" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="1173.99" y="127.5" ></text>
+</g>
+<g >
+<title>std::thread::join()&lt;00000000000eb3d0&gt;[inline] (184 samples, 0.08%)</title><rect x="1179.6" y="101" width="1.0" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="1182.62" y="111.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (169 samples, 0.08%)</title><rect x="1188.8" y="69" width="0.9" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="1191.82" y="79.5" ></text>
+</g>
+<g >
+<title>bool gguf_read_emplace_helper&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt;(gguf_reader const&amp;, std::vector&lt;gguf_kv, std::allocator&lt;gguf_kv&gt; &gt;&amp;, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;, bool, unsigned long)&lt;0000000000076930&gt; (19 samples, 0.01%)</title><rect x="599.4" y="181" width="0.1" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="602.44" y="191.5" ></text>
+</g>
+<g >
+<title>llama_context::graph_compute(ggml_cgraph*, bool)&lt;00000000000a1a60&gt; (2,186 samples, 0.98%)</title><rect x="576.6" y="213" width="11.6" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="579.59" y="223.5" ></text>
+</g>
+<g >
+<title>ggml_vec_dot_f16&lt;000000000005dc50&gt; (41 samples, 0.02%)</title><rect x="577.0" y="101" width="0.2" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="579.96" y="111.5" ></text>
+</g>
+<g >
+<title>do_spin[inline] (66 samples, 0.03%)</title><rect x="118.6" y="197" width="0.4" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="121.63" y="207.5" ></text>
+</g>
+<g >
+<title>ggml::cpu::repack::tensor_traits&lt;block_q4_K, 8l, 8l, (ggml_type)15&gt;::compute_forward(ggml_compute_params*, ggml_tensor*) (1,109 samples, 0.50%)</title><rect x="1182.9" y="85" width="5.9" height="15.0" fill="rgb(249,202,48)" rx="2" ry="2" />
+<text  x="1185.93" y="95.5" ></text>
+</g>
+<g >
+<title>gomp_barrier_wait_end&lt;0000000000025180&gt; (23 samples, 0.01%)</title><rect x="1189.8" y="85" width="0.1" height="15.0" fill="rgb(228,106,25)" rx="2" ry="2" />
+<text  x="1192.81" y="95.5" ></text>
+</g>
+<g >
+<title>do_wait[inline] (169 samples, 0.08%)</title><rect x="1188.8" y="85" width="0.9" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="1191.82" y="95.5" ></text>
+</g>
+<g >
+<title>gomp_simple_barrier_wait[inline] (6,746 samples, 3.03%)</title><rect x="540.7" y="277" width="35.8" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="543.74" y="287.5" >gom..</text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (561 samples, 0.25%)</title><rect x="595.8" y="165" width="3.0" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="598.81" y="175.5" ></text>
+</g>
+<g >
+<title>ggml_vec_soft_max_f32&lt;000000000005e550&gt; (65 samples, 0.03%)</title><rect x="131.8" y="245" width="0.4" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="134.81" y="255.5" ></text>
+</g>
+<g >
+<title>gomp_team_barrier_wait_end&lt;0000000000025310&gt; (169 samples, 0.08%)</title><rect x="1188.8" y="101" width="0.9" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="1191.82" y="111.5" ></text>
+</g>
+<g >
+<title>ggml_gemm_q4_K_8x8_q8_K&lt;00000000000d63a0&gt; (1,011 samples, 0.45%)</title><rect x="1182.9" y="69" width="5.4" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="1185.93" y="79.5" ></text>
+</g>
+<g >
+<title>gomp_thread_start&lt;0000000000022690&gt; (105,944 samples, 47.63%)</title><rect x="14.6" y="293" width="562.0" height="15.0" fill="rgb(216,54,12)" rx="2" ry="2" />
+<text  x="17.58" y="303.5" >gomp_thread_start&lt;0000000000022690&gt;</text>
+</g>
+<g >
+<title>ggml_graph_compute_thread.isra.0&lt;0000000000014100&gt; (1,499 samples, 0.67%)</title><rect x="1181.8" y="117" width="8.0" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="1184.81" y="127.5" ></text>
+</g>
+<g >
+<title>__memmove_avx512_unaligned_erms (28 samples, 0.01%)</title><rect x="1182.7" y="85" width="0.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1185.72" y="95.5" ></text>
+</g>
+<g >
+<title>futex_wake[inline] (23 samples, 0.01%)</title><rect x="1189.8" y="53" width="0.1" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="1192.81" y="63.5" ></text>
+</g>
+</g>
+</svg>

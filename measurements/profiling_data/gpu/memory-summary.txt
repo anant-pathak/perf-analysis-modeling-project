@@ -1,0 +1,11 @@
+Generating SQLite file llama-gpu-profile.sqlite from llama-gpu-profile.nsys-rep
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/cuda_gpu_mem_time_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)           Operation          
+ --------  ---------------  -----  --------  --------  --------  --------  -----------  ----------------------------
+     94.1        257295635   4280   60115.8    1472.0       864  23199833     441427.4  [CUDA memcpy Host-to-Device]
+      5.9         16029916    647   24775.8   24768.0     24384     27232        250.7  [CUDA memcpy Device-to-Host]
+      0.0           128576      2   64288.0   64288.0     45184     83392      27017.1  [CUDA memset]               
+
