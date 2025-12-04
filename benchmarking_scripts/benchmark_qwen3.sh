@@ -6,6 +6,8 @@
 # COMMAND to acquire Nodes: salloc --cpus-per-task 64 --mem 200G --gres=gpu:1 --time=1:00:00
 
 # Configuration
+#/scratch/mmarkoc-pdx_performance/models/Qwen3-4B/Qwen_Qwen3-4B-GGUF_Qwen3-4B-Q4_K_M.gguf
+#/scratch/mmarkoc-pdx_performance/models/Qwen3-0.6B/Qwen_Qwen3-0.6B-GGUF_Qwen3-0.6B-Q8_0.gguf
 MODEL_PATH=~/models/Qwen3-8B/qwen3-8b-q5_k_m.gguf
 LLAMA_BENCH=~/llama.cpp/build/bin/llama-bench
 THREADS=64
