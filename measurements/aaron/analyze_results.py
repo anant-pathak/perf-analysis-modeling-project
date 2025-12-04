@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
-"""
-Robust Benchmark Analysis Script
-Fixed: Correctly identifies Quad GPU (Custom) vs Dual GPU
-"""
 
 import sys
 from pathlib import Path
 from datetime import datetime
 
-# Configuration
 BENCHMARK_DIR = Path.home() / "perf-analysis-modeling-project/measurements/aaron"
 OUTPUT_FILE = BENCHMARK_DIR / f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
 
 class Tee:
-    """Write to both stdout and file simultaneously"""
     def __init__(self, filename):
         self.terminal = sys.stdout
         self.log = open(filename, 'w')
@@ -30,7 +24,6 @@ class Tee:
         self.log.close()
 
 def parse_benchmark_file(filepath):
-    """Parse benchmark file line by line"""
     with open(filepath, 'r') as f:
         lines = f.readlines()
     
@@ -56,9 +49,15 @@ def parse_benchmark_file(filepath):
             parts = line.split('NVIDIA')[1].split(',')[0].strip()
             results['gpu_type'] = f"NVIDIA {parts}"
         
-        # Detect test sections
-        if line.startswith('## Test'):
-            # Save previous config if exists
+        # Detect test sections - FIX: Only match "## Test N:" pattern
+        if line.startswith('## Test ') and ':' in line:
+            try:
+                test_num_str = line.split('Test')[1].split(':')[0].strip()
+                test_num = int(test_num_str)
+            except (ValueError, IndexError):
+                continue  # Skip if not a valid test number
+            
+            # Save previous config
             if current_config and (current_config['pp512'] or current_config['tg128']):
                 avg_pp = sum(current_config['pp512']) / len(current_config['pp512']) if current_config['pp512'] else 0
                 avg_tg = sum(current_config['tg128']) / len(current_config['tg128']) if current_config['tg128'] else 0
@@ -71,14 +70,13 @@ def parse_benchmark_file(filepath):
                 })
             
             # Start new config
-            test_num = int(line.split('Test')[1].split(':')[0].strip())
-            config_name = line.split(':')[1].strip()
+            config_name = line.split(':', 1)[1].strip()
             
-            # Determine config type - CRITICAL: Check Quad BEFORE Dual
+            # Determine config type - Check Quad BEFORE Dual
             is_cpu = False
             clean_name = "Unknown"
             
-            if 'CPU-Only' in config_name or 'CPU-Only' in line:
+            if 'CPU-Only' in config_name:
                 clean_name = "CPU-Only"
                 is_cpu = True
             elif 'Partial' in config_name:
@@ -106,7 +104,7 @@ def parse_benchmark_file(filepath):
             }
             in_results_table = False
         
-        # Check for CUDA init failed (CPU-only indicator)
+        # Check for CUDA init failed
         elif current_config and 'failed to initialize CUDA' in line:
             current_config['is_cpu'] = True
             current_config['name'] = "CPU-Only"
@@ -115,19 +113,16 @@ def parse_benchmark_file(filepath):
         elif '| model' in line and 'test' in line and 't/s' in line:
             in_results_table = True
         elif in_results_table and '| qwen3 8B' in line:
-            # Parse result line
             parts = [p.strip() for p in line.split('|')]
             if len(parts) >= 7:
                 try:
                     for j, part in enumerate(parts):
-                        if 'pp512' in part or 'pp128' in part:
-                            test_type = 'pp512'
+                        if 'pp512' in part:
                             tokens_per_sec = float(parts[j+1].split('±')[0].strip())
-                            current_config[test_type].append(tokens_per_sec)
-                        elif 'tg128' in part or 'tg512' in part:
-                            test_type = 'tg128'
+                            current_config['pp512'].append(tokens_per_sec)
+                        elif 'tg128' in part:
                             tokens_per_sec = float(parts[j+1].split('±')[0].strip())
-                            current_config[test_type].append(tokens_per_sec)
+                            current_config['tg128'].append(tokens_per_sec)
                 except (ValueError, IndexError):
                     pass
     
@@ -146,7 +141,6 @@ def parse_benchmark_file(filepath):
     return results
 
 def main():
-    # Redirect output to both terminal and file
     tee = Tee(OUTPUT_FILE)
     sys.stdout = tee
     
@@ -156,18 +150,16 @@ def main():
     print(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"\nScanning directory: {BENCHMARK_DIR}")
     
-    # Find all benchmark markdown files
     benchmark_files = sorted(BENCHMARK_DIR.glob("benchmark_results*.md"))
     
     if not benchmark_files:
-        print(f"\n❌ No benchmark files found in {BENCHMARK_DIR}")
+        print(f"\n❌ No benchmark files found")
         tee.close()
         sys.stdout = tee.terminal
         return
     
     print(f"Found {len(benchmark_files)} benchmark file(s)")
     
-    # Parse all files
     results_list = []
     for filepath in benchmark_files:
         print(f"  - {filepath.name}")
@@ -177,15 +169,13 @@ def main():
                 results_list.append(results)
                 print(f"    → Parsed {len(results['configurations'])} configurations")
         except Exception as e:
-            print(f"    ⚠ Error parsing {filepath.name}: {e}")
+            print(f"    ⚠ Error: {e}")
     
     if not results_list:
         print("\n❌ No valid results found")
         tee.close()
         sys.stdout = tee.terminal
         return
-    
-    # === ANALYSIS SECTION ===
     
     print("\n" + "="*70)
     print("DETAILED RESULTS BY CONFIGURATION")
@@ -216,8 +206,8 @@ def main():
     print("-"*70)
     
     for result in results_list:
-        has_gpu_config = any(not c['is_cpu_only'] for c in result['configurations'])
-        if has_gpu_config:
+        has_gpu = any(not c['is_cpu_only'] for c in result['configurations'])
+        if has_gpu:
             print(f"\n📍 Node: {result['node']}")
             print(f"   GPU: {result['gpu_type'] or 'Unknown'}")
             print(f"   GPU Count: {result['gpu_count'] or 'N/A'}")
@@ -226,8 +216,6 @@ def main():
             for config in sorted(result['configurations'], key=lambda x: x.get('test_num', 0)):
                 if not config['is_cpu_only']:
                     print(f"   {config['name']:25s} | pp512: {config['pp512']:8.2f} t/s | tg128: {config['tg128']:6.2f} t/s")
-    
-    # === COMPARISON TABLE ===
     
     print("\n" + "="*70)
     print("COMPREHENSIVE COMPARISON TABLE")
@@ -245,8 +233,6 @@ def main():
             tg128 = config['tg128']
             
             print(f"| {node:9s} | {gpu_type:12s} | {config_name:19s} | {pp512:14.2f} | {tg128:17.2f} |")
-    
-    # === SPEEDUP ANALYSIS ===
     
     if cpu_baseline:
         print("\n" + "="*70)
@@ -272,13 +258,10 @@ def main():
                     
                     print(f"| {node:9s} | {gpu_type:12s} | {config_name:19s} | {pp_speedup:14.2f}x | {tg_speedup:17.2f}x |")
     
-    # === KEY FINDINGS ===
-    
     print("\n" + "="*70)
     print("KEY FINDINGS")
     print("="*70)
     
-    # Find best GPU configurations
     gpu_configs = []
     for result in results_list:
         for config in result['configurations']:
@@ -303,27 +286,25 @@ def main():
             speedup = best_tg[1]['tg128'] / cpu_baseline['tg128']
             print(f"   Speedup: {speedup:.2f}x vs CPU")
         
-        # Multi-GPU analysis
         single_gpu = [x for x in gpu_configs if 'Single GPU' in x[1]['name'] or 'GPU Full' in x[1]['name']]
         multi_gpu = [x for x in gpu_configs if 'Dual GPU' in x[1]['name'] or 'Quad GPU' in x[1]['name']]
         
         if single_gpu and multi_gpu:
             print(f"\n3. Multi-GPU Scaling Analysis:")
-            single_avg_pp = sum(x[1]['pp512'] for x in single_gpu) / len(single_gpu)
-            multi_avg_pp = sum(x[1]['pp512'] for x in multi_gpu) / len(multi_gpu)
+            single_avg = sum(x[1]['pp512'] for x in single_gpu) / len(single_gpu)
+            multi_avg = sum(x[1]['pp512'] for x in multi_gpu) / len(multi_gpu)
             
-            print(f"   Single GPU avg: {single_avg_pp:.2f} t/s (prompt)")
-            print(f"   Multi GPU avg:  {multi_avg_pp:.2f} t/s (prompt)")
+            print(f"   Single GPU avg: {single_avg:.2f} t/s (prompt)")
+            print(f"   Multi GPU avg:  {multi_avg:.2f} t/s (prompt)")
             
-            if multi_avg_pp < single_avg_pp:
-                loss = ((single_avg_pp - multi_avg_pp) / single_avg_pp * 100)
+            if multi_avg < single_avg:
+                loss = ((single_avg - multi_avg) / single_avg * 100)
                 print(f"   ⚠️  Multi-GPU shows NEGATIVE scaling: {loss:.1f}% performance loss")
                 print(f"   💡 Recommendation: Use single GPU for this model size")
             else:
-                gain = ((multi_avg_pp - single_avg_pp) / single_avg_pp * 100)
+                gain = ((multi_avg - single_avg) / single_avg * 100)
                 print(f"   ✅ Multi-GPU shows positive scaling: {gain:.1f}% performance gain")
         
-        # Hardware comparison
         gpu_types = {}
         for result, config in gpu_configs:
             gpu_type = result['gpu_type']
@@ -343,10 +324,8 @@ def main():
     print("="*70)
     print(f"\n✅ Analysis saved to: {OUTPUT_FILE}")
     
-    # Close file and restore stdout
     tee.close()
     sys.stdout = tee.terminal
-    
     print(f"\n✅ Analysis saved to: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
