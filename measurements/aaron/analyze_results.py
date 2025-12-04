@@ -40,8 +40,11 @@ def parse_benchmark_file(filepath):
     if gpu_count_match:
         results['gpu_count'] = int(gpu_count_match.group(1))
     
-    # Extract benchmark results - look for the table rows
-    # Pattern: | qwen3 8B Q5_K - Medium | size | params | backend | threads | test | t/s |
+    # Check if this is a CPU-only test
+    is_cpu_only = 'failed to initialize CUDA' in content or 'CPU-Only' in content
+    
+    # Extract benchmark results
+    # Pattern matches the table rows with performance data
     pattern = r'\|\s*qwen3 8B.*?\|\s*[\d.]+\s*GiB\s*\|\s*[\d.]+\s*B\s*\|\s*[\w,]+\s*\|\s*(\d+)\s*\|(?:\s*[\d.]+\s*\|)?\s*(pp\d+|tg\d+)\s*\|\s*([\d.]+)'
     
     matches = re.finditer(pattern, content)
@@ -53,7 +56,8 @@ def parse_benchmark_file(filepath):
         results['tests'].append({
             'threads': threads,
             'test_type': test_type,
-            'tokens_per_sec': tokens_per_sec
+            'tokens_per_sec': tokens_per_sec,
+            'is_cpu_only': is_cpu_only
         })
     
     return results
@@ -61,18 +65,22 @@ def parse_benchmark_file(filepath):
 def aggregate_tests(tests):
     """Aggregate test results by type"""
     aggregated = {}
+    is_cpu = False
+    
     for test in tests:
         test_type = test['test_type']
         if test_type not in aggregated:
             aggregated[test_type] = []
         aggregated[test_type].append(test['tokens_per_sec'])
+        if test.get('is_cpu_only'):
+            is_cpu = True
     
     # Calculate averages
     averages = {}
     for test_type, values in aggregated.items():
         averages[test_type] = sum(values) / len(values)
     
-    return averages
+    return averages, is_cpu
 
 def analyze_single_gpu_results(results_list):
     """Analyze single GPU configuration results"""
@@ -86,14 +94,13 @@ def analyze_single_gpu_results(results_list):
             print(f"GPU: {result['gpu_type']}")
             print(f"File: {result['filename']}")
             
-            aggregated = aggregate_tests(result['tests'])
+            aggregated, is_cpu = aggregate_tests(result['tests'])
             
             print("\nPerformance Metrics:")
             print(f"  Prompt Processing (pp512): {aggregated.get('pp512', 0):.2f} t/s")
             print(f"  Text Generation (tg128):   {aggregated.get('tg128', 0):.2f} t/s")
             
-            # Calculate speedups if we have CPU baseline
-            if 'CPU' in result['filename'] or aggregated.get('pp512', 0) < 100:
+            if is_cpu:
                 print("  → CPU-Only Baseline")
             else:
                 print("  → GPU-Accelerated")
@@ -110,7 +117,7 @@ def analyze_multi_gpu_results(results_list):
             print(f"GPU: {result['gpu_type']} x {result['gpu_count']}")
             print(f"File: {result['filename']}")
             
-            aggregated = aggregate_tests(result['tests'])
+            aggregated, _ = aggregate_tests(result['tests'])
             
             print("\nPerformance Metrics:")
             print(f"  Prompt Processing (pp512): {aggregated.get('pp512', 0):.2f} t/s")
@@ -122,18 +129,19 @@ def generate_comparison_table(results_list):
     print("COMPREHENSIVE COMPARISON TABLE")
     print("="*70)
     print()
-    print("| Node      | GPU Type  | GPUs | Prompt (pp512) | Generation (tg128) |")
-    print("|-----------|-----------|------|----------------|-------------------|")
+    print("| Node      | GPU Type  | GPUs | Config      | Prompt (pp512) | Generation (tg128) |")
+    print("|-----------|-----------|------|-------------|----------------|-------------------|")
     
     for result in results_list:
-        aggregated = aggregate_tests(result['tests'])
+        aggregated, is_cpu = aggregate_tests(result['tests'])
         node = result['node'] or 'Unknown'
-        gpu_type = result['gpu_type'] or 'CPU-Only'
+        gpu_type = result['gpu_type'] or 'CPU'
         gpu_count = result['gpu_count'] or 0
+        config = "CPU-Only" if is_cpu else "GPU-Full"
         pp512 = aggregated.get('pp512', 0)
         tg128 = aggregated.get('tg128', 0)
         
-        print(f"| {node:9s} | {gpu_type:9s} | {gpu_count:4d} | {pp512:14.2f} | {tg128:17.2f} |")
+        print(f"| {node:9s} | {gpu_type:9s} | {gpu_count:4d} | {config:11s} | {pp512:14.2f} | {tg128:17.2f} |")
 
 def calculate_speedups(results_list):
     """Calculate speedups comparing GPU to CPU"""
@@ -143,35 +151,42 @@ def calculate_speedups(results_list):
     
     # Find CPU baseline
     cpu_baseline = None
+    cpu_result = None
+    
     for result in results_list:
-        aggregated = aggregate_tests(result['tests'])
-        if aggregated.get('pp512', 0) < 100:  # Likely CPU-only
+        aggregated, is_cpu = aggregate_tests(result['tests'])
+        if is_cpu:
             cpu_baseline = aggregated
+            cpu_result = result
             break
     
     if not cpu_baseline:
         print("\nNo CPU baseline found for speedup calculation")
         return
     
-    print(f"\nCPU Baseline:")
+    print(f"\nCPU Baseline ({cpu_result['node']}):")
     print(f"  Prompt Processing: {cpu_baseline.get('pp512', 0):.2f} t/s")
     print(f"  Text Generation:   {cpu_baseline.get('tg128', 0):.2f} t/s")
     print("\nGPU Speedups:")
     print()
-    print("| Configuration | Prompt Speedup | Generation Speedup |")
-    print("|---------------|----------------|-------------------|")
+    print("| Node      | GPU Type     | GPUs | Prompt Speedup | Generation Speedup |")
+    print("|-----------|--------------|------|----------------|-------------------|")
     
     for result in results_list:
-        aggregated = aggregate_tests(result['tests'])
-        pp512 = aggregated.get('pp512', 0)
-        tg128 = aggregated.get('tg128', 0)
+        aggregated, is_cpu = aggregate_tests(result['tests'])
         
-        if pp512 > 100:  # GPU configuration
+        if not is_cpu:  # GPU configuration
+            pp512 = aggregated.get('pp512', 0)
+            tg128 = aggregated.get('tg128', 0)
+            
             pp_speedup = pp512 / cpu_baseline.get('pp512', 1)
             tg_speedup = tg128 / cpu_baseline.get('tg128', 1)
             
-            config_name = f"{result['node']} ({result['gpu_type']})"
-            print(f"| {config_name:13s} | {pp_speedup:14.2f}x | {tg_speedup:17.2f}x |")
+            node = result['node'] or 'Unknown'
+            gpu_type = result['gpu_type'] or 'Unknown'
+            gpu_count = result['gpu_count'] or 1
+            
+            print(f"| {node:9s} | {gpu_type:12s} | {gpu_count:4d} | {pp_speedup:14.2f}x | {tg_speedup:17.2f}x |")
 
 def generate_key_findings(results_list):
     """Generate key findings summary"""
@@ -179,29 +194,36 @@ def generate_key_findings(results_list):
     print("KEY FINDINGS")
     print("="*70)
     
-    # Find best and worst performers
-    best_pp = max(results_list, key=lambda r: aggregate_tests(r['tests']).get('pp512', 0))
-    best_tg = max(results_list, key=lambda r: aggregate_tests(r['tests']).get('tg128', 0))
+    # Find best performers (excluding CPU)
+    gpu_results = []
+    for r in results_list:
+        agg, is_cpu = aggregate_tests(r['tests'])
+        if not is_cpu:
+            gpu_results.append((r, agg))
     
-    best_pp_agg = aggregate_tests(best_pp['tests'])
-    best_tg_agg = aggregate_tests(best_tg['tests'])
+    if not gpu_results:
+        print("\nNo GPU results found")
+        return
+    
+    best_pp = max(gpu_results, key=lambda x: x[1].get('pp512', 0))
+    best_tg = max(gpu_results, key=lambda x: x[1].get('tg128', 0))
     
     print(f"\n1. Best Prompt Processing Performance:")
-    print(f"   {best_pp['node']} - {best_pp['gpu_type']}")
-    print(f"   {best_pp_agg.get('pp512', 0):.2f} t/s")
+    print(f"   {best_pp[0]['node']} - {best_pp[0]['gpu_type']}")
+    print(f"   {best_pp[1].get('pp512', 0):.2f} t/s")
     
     print(f"\n2. Best Text Generation Performance:")
-    print(f"   {best_tg['node']} - {best_tg['gpu_type']}")
-    print(f"   {best_tg_agg.get('tg128', 0):.2f} t/s")
+    print(f"   {best_tg[0]['node']} - {best_tg[0]['gpu_type']}")
+    print(f"   {best_tg[1].get('tg128', 0):.2f} t/s")
     
     # Multi-GPU analysis
-    multi_gpu_results = [r for r in results_list if r['gpu_count'] and r['gpu_count'] > 1]
-    single_gpu_results = [r for r in results_list if r['gpu_count'] == 1 and aggregate_tests(r['tests']).get('pp512', 0) > 1000]
+    multi_gpu_results = [(r, agg) for r, agg in gpu_results if r['gpu_count'] and r['gpu_count'] > 1]
+    single_gpu_results = [(r, agg) for r, agg in gpu_results if r['gpu_count'] == 1]
     
     if multi_gpu_results and single_gpu_results:
         print(f"\n3. Multi-GPU Scaling:")
-        single_avg = sum(aggregate_tests(r['tests']).get('pp512', 0) for r in single_gpu_results) / len(single_gpu_results)
-        multi_avg = sum(aggregate_tests(r['tests']).get('pp512', 0) for r in multi_gpu_results) / len(multi_gpu_results)
+        single_avg = sum(agg.get('pp512', 0) for _, agg in single_gpu_results) / len(single_gpu_results)
+        multi_avg = sum(agg.get('pp512', 0) for _, agg in multi_gpu_results) / len(multi_gpu_results)
         
         if multi_avg < single_avg:
             print(f"   ⚠ Multi-GPU shows NEGATIVE scaling")
@@ -210,6 +232,23 @@ def generate_key_findings(results_list):
             print(f"   Performance loss: {((single_avg - multi_avg) / single_avg * 100):.1f}%")
         else:
             print(f"   ✓ Multi-GPU shows positive scaling")
+            print(f"   Single GPU avg: {single_avg:.2f} t/s")
+            print(f"   Multi GPU avg:  {multi_avg:.2f} t/s")
+            print(f"   Performance gain: {((multi_avg - single_avg) / single_avg * 100):.1f}%")
+    
+    # Hardware comparison
+    gpu_types = {}
+    for r, agg in gpu_results:
+        gpu_type = r['gpu_type']
+        if gpu_type not in gpu_types:
+            gpu_types[gpu_type] = []
+        gpu_types[gpu_type].append(agg.get('pp512', 0))
+    
+    if len(gpu_types) > 1:
+        print(f"\n4. Hardware Comparison:")
+        for gpu_type, values in gpu_types.items():
+            avg = sum(values) / len(values)
+            print(f"   {gpu_type}: {avg:.2f} t/s (avg)")
 
 def main():
     print("="*70)
