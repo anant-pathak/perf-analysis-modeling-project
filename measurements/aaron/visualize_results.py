@@ -78,12 +78,22 @@ def parse_analysis_file(filepath):
 
 def create_cpu_vs_gpu_comparison(data):
     """Figure 1: CPU vs GPU configurations"""
-    # Get CPU baseline and GPU configurations
+    # Get CPU baseline
     cpu_config = next((c for c in data['configurations'] if c['is_cpu']), None)
-    gpu_configs = [c for c in data['configurations'] if not c['is_cpu'] and 'Single GPU' in c['name'] or 'GPU Full' in c['name'] or 'GPU Partial' in c['name']]
     
-    if not cpu_config or not gpu_configs:
-        print("⚠ Skipping CPU vs GPU comparison - insufficient data")
+    # Get GPU configurations - FIXED LOGIC
+    gpu_configs = [c for c in data['configurations'] 
+                   if not c['is_cpu'] and ('Single GPU' in c['name'] or 'GPU Full' in c['name'] or 'GPU Partial' in c['name'])]
+    
+    print(f"  DEBUG: Found CPU config: {cpu_config is not None}")
+    print(f"  DEBUG: Found {len(gpu_configs)} GPU configs: {[c['name'] for c in gpu_configs]}")
+    
+    if not cpu_config:
+        print("  ⚠ No CPU configuration found")
+        return
+    
+    if not gpu_configs:
+        print("  ⚠ No GPU configurations found")
         return
     
     # Prepare data
@@ -125,20 +135,20 @@ def create_cpu_vs_gpu_comparison(data):
     
     plt.tight_layout()
     plt.savefig(f'{OUTPUT_DIR}/1_cpu_vs_gpu_comparison.png', dpi=300, bbox_inches='tight')
-    print(f'✓ Saved: 1_cpu_vs_gpu_comparison.png')
+    print(f'  ✓ Saved: 1_cpu_vs_gpu_comparison.png')
     plt.close()
 
 def create_speedup_analysis(data):
     """Figure 2: Speedup analysis"""
     cpu_baseline = data['cpu_baseline']
     if not cpu_baseline:
-        print("⚠ Skipping speedup analysis - no CPU baseline")
+        print("  ⚠ Skipping speedup analysis - no CPU baseline")
         return
     
     gpu_configs = [c for c in data['configurations'] if not c['is_cpu']]
     
     if not gpu_configs:
-        print("⚠ Skipping speedup analysis - no GPU configurations")
+        print("  ⚠ Skipping speedup analysis - no GPU configurations")
         return
     
     configs = []
@@ -176,7 +186,7 @@ def create_speedup_analysis(data):
     
     plt.tight_layout()
     plt.savefig(f'{OUTPUT_DIR}/2_speedup_analysis.png', dpi=300, bbox_inches='tight')
-    print(f'✓ Saved: 2_speedup_analysis.png')
+    print(f'  ✓ Saved: 2_speedup_analysis.png')
     plt.close()
 
 def create_multi_gpu_scaling(data):
@@ -186,10 +196,10 @@ def create_multi_gpu_scaling(data):
     multi_gpu = [c for c in data['configurations'] if 'Dual GPU' in c['name'] or 'Quad GPU' in c['name']]
     
     if not single_gpu or not multi_gpu:
-        print("⚠ Skipping multi-GPU scaling - insufficient data")
+        print("  ⚠ Skipping multi-GPU scaling - insufficient data")
         return
     
-    all_configs = single_gpu + multi_gpu
+    all_configs = single_gpu[:1] + multi_gpu  # Take first single GPU + all multi
     configs = [c['name'].replace(' ', '\n') for c in all_configs]
     pp_data = [c['pp512'] for c in all_configs]
     tg_data = [c['tg128'] for c in all_configs]
@@ -225,13 +235,13 @@ def create_multi_gpu_scaling(data):
     
     plt.tight_layout()
     plt.savefig(f'{OUTPUT_DIR}/3_multi_gpu_scaling.png', dpi=300, bbox_inches='tight')
-    print(f'✓ Saved: 3_multi_gpu_scaling.png')
+    print(f'  ✓ Saved: 3_multi_gpu_scaling.png')
     plt.close()
 
 def create_hardware_comparison(data):
     """Figure 4: Hardware comparison"""
     if len(data['hardware_types']) < 2:
-        print("⚠ Skipping hardware comparison - need at least 2 GPU types")
+        print("  ⚠ Skipping hardware comparison - need at least 2 GPU types")
         return
     
     hardware_names = []
@@ -248,7 +258,7 @@ def create_hardware_comparison(data):
             tg_avgs.append(best['tg128'])
     
     if len(hardware_names) < 2:
-        print("⚠ Skipping hardware comparison - insufficient single GPU data")
+        print("  ⚠ Skipping hardware comparison - insufficient single GPU data")
         return
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -290,7 +300,7 @@ def create_hardware_comparison(data):
     
     plt.tight_layout()
     plt.savefig(f'{OUTPUT_DIR}/4_hardware_comparison.png', dpi=300, bbox_inches='tight')
-    print(f'✓ Saved: 4_hardware_comparison.png')
+    print(f'  ✓ Saved: 4_hardware_comparison.png')
     plt.close()
 
 def create_summary_dashboard(data):
@@ -302,7 +312,7 @@ def create_summary_dashboard(data):
     
     cpu_baseline = data['cpu_baseline']
     if not cpu_baseline:
-        print("⚠ Cannot create dashboard without CPU baseline")
+        print("  ⚠ Cannot create dashboard without CPU baseline")
         return
     
     # Get best GPU config
@@ -310,7 +320,7 @@ def create_summary_dashboard(data):
     best_gpu = max(gpu_configs, key=lambda x: x['pp512']) if gpu_configs else None
     
     if not best_gpu:
-        print("⚠ Cannot create dashboard without GPU configs")
+        print("  ⚠ Cannot create dashboard without GPU configs")
         return
     
     # Subplot 1: CPU vs GPU
@@ -402,7 +412,7 @@ for maximum inference performance
             bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.3))
     
     plt.savefig(f'{OUTPUT_DIR}/5_summary_dashboard.png', dpi=300, bbox_inches='tight')
-    print(f'✓ Saved: 5_summary_dashboard.png')
+    print(f'  ✓ Saved: 5_summary_dashboard.png')
     plt.close()
 
 def main():

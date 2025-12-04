@@ -59,39 +59,66 @@ def parse_benchmark_file(filepath):
     if gpu_match:
         results['gpu_type'] = gpu_match.group(1)
     
-    # Split content into test sections
-    # Look for "## Test N:" markers
-    test_sections = re.split(r'## Test \d+:', content)
+    # Split content into test sections - IMPROVED REGEX
+    # Look for "## Test N:" markers with the configuration name
+    test_pattern = r'## Test (\d+):\s*(.+?)\n\n\*\*Configuration:\*\*(.+?)```'
+    test_matches = re.finditer(test_pattern, content, re.DOTALL)
     
-    for section in test_sections[1:]:  # Skip first split (before any tests)
+    for match in test_matches:
+        test_num = int(match.group(1))
+        section_title = match.group(2).strip()
+        section_content = match.group(3)
+        
+        # Determine configuration name from section title
         config_name = "Unknown"
         is_cpu_only = False
-        test_results = {'pp512': [], 'tg128': []}
         
-        # Determine configuration type from section header
-        if 'CPU-Only' in section or 'failed to initialize CUDA' in section:
+        if 'CPU-Only' in section_title:
             config_name = "CPU-Only"
             is_cpu_only = True
-        elif 'GPU Partial' in section or 'Partial Offloading' in section:
+        elif 'Partial' in section_title:
             config_name = "GPU Partial"
-        elif 'GPU Full' in section or 'Full Offloading' in section:
+        elif 'Full' in section_title:
             config_name = "GPU Full"
-        elif 'Single GPU' in section and 'Baseline' in section:
+        elif 'Single GPU' in section_title:
             config_name = "Single GPU"
-        elif 'Dual GPU' in section:
+        elif 'Dual GPU' in section_title:
             config_name = "Dual GPU"
-        elif 'Quad GPU' in section and 'Balanced' in section:
+        elif 'Quad GPU' in section_title and 'Balanced' in section_title:
             config_name = "Quad GPU (Balanced)"
-        elif 'Quad GPU' in section and 'Custom' in section:
+        elif 'Quad GPU' in section_title and 'Custom' in section_title:
             config_name = "Quad GPU (Custom)"
         
+        # Now get the full section content to extract performance data
+        # Find the section starting from this test header
+        section_start = match.start()
+        # Find the next test header or end of file
+        next_test = re.search(r'## Test \d+:', content[match.end():])
+        if next_test:
+            section_end = match.end() + next_test.start()
+        else:
+            # Check for "## Performance Summary" or similar
+            summary_match = re.search(r'## Performance Summary|## Observations|## Build Configuration', content[match.end():])
+            if summary_match:
+                section_end = match.end() + summary_match.start()
+            else:
+                section_end = len(content)
+        
+        section = content[section_start:section_end]
+        
+        # Check if CPU-only from error message
+        if 'failed to initialize CUDA' in section:
+            is_cpu_only = True
+            config_name = "CPU-Only"
+        
         # Extract performance numbers from this section
+        test_results = {'pp512': [], 'tg128': []}
         pattern = r'\|\s*qwen3 8B.*?\|\s*[\d.]+\s*GiB\s*\|\s*[\d.]+\s*B\s*\|\s*[\w,]+\s*\|\s*\d+\s*\|(?:\s*[\d.]+\s*\|)?\s*(pp\d+|tg\d+)\s*\|\s*([\d.]+)'
         
         matches = re.finditer(pattern, section)
-        for match in matches:
-            test_type = match.group(1)
-            tokens_per_sec = float(match.group(2))
+        for m in matches:
+            test_type = m.group(1)
+            tokens_per_sec = float(m.group(2))
             test_results[test_type].append(tokens_per_sec)
         
         # Calculate averages for this configuration
@@ -103,7 +130,8 @@ def parse_benchmark_file(filepath):
                 'name': config_name,
                 'is_cpu_only': is_cpu_only,
                 'pp512': avg_pp512,
-                'tg128': avg_tg128
+                'tg128': avg_tg128,
+                'test_num': test_num
             })
     
     return results
@@ -140,6 +168,8 @@ def main():
                 results_list.append(results)
         except Exception as e:
             print(f"    ⚠ Error parsing {filepath.name}: {e}")
+            import traceback
+            traceback.print_exc()
     
     if not results_list:
         print("\n❌ No valid results found")
@@ -185,7 +215,7 @@ def main():
             print(f"   GPU Count: {result['gpu_count'] or 'N/A'}")
             print()
             
-            for config in result['configurations']:
+            for config in sorted(result['configurations'], key=lambda x: x.get('test_num', 0)):
                 if not config['is_cpu_only']:
                     print(f"   {config['name']:25s} | pp512: {config['pp512']:8.2f} t/s | tg128: {config['tg128']:6.2f} t/s")
     
@@ -199,7 +229,7 @@ def main():
     print("|-----------|--------------|---------------------|----------------|-------------------|")
     
     for result in results_list:
-        for config in result['configurations']:
+        for config in sorted(result['configurations'], key=lambda x: x.get('test_num', 0)):
             node = result['node'] or 'Unknown'
             gpu_type = result['gpu_type'] or 'CPU'
             config_name = config['name']
@@ -223,7 +253,7 @@ def main():
         print("|-----------|--------------|---------------------|----------------|-------------------|")
         
         for result in results_list:
-            for config in result['configurations']:
+            for config in sorted(result['configurations'], key=lambda x: x.get('test_num', 0)):
                 if not config['is_cpu_only']:
                     pp_speedup = config['pp512'] / cpu_baseline['pp512']
                     tg_speedup = config['tg128'] / cpu_baseline['tg128']
