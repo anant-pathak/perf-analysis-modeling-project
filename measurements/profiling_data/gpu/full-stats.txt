@@ -1,0 +1,176 @@
+Generating SQLite file llama-gpu-profile.sqlite from llama-gpu-profile.nsys-rep
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/nvtx_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain NV Tools Extension (NVTX) data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/osrt_sum.py]... 
+
+ ** OS Runtime Summary (osrt_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)    Med (ns)    Min (ns)  Max (ns)   StdDev (ns)          Name         
+ --------  ---------------  ---------  ----------  -----------  --------  ---------  -----------  ---------------------
+     94.8      10592225372        118  89764621.8  100160170.0     44647  100172634   28735144.5  poll                 
+      2.9        321733715         30  10724457.2      10325.5      2965  318357057   58103598.8  mmap                 
+      1.6        180883084         20   9044154.2       6289.5      2945  149157761   33342863.3  munmap               
+      0.6         72594517        770     94278.6      16519.5      1002   18090853     772513.7  ioctl                
+      0.0          2958160         24    123256.7     122298.0     92519     158237      18631.8  openat               
+      0.0          2243999         29     77379.3       9144.0      5318    1572757     289473.3  mmap64               
+      0.0          1751735        780      2245.8       1993.0      1352      20691       1277.4  fread                
+      0.0          1735149        213      8146.2       3956.0      1532     211036      23114.2  stat                 
+      0.0           826539         11     75139.9      27982.0     15493     450615     127392.2  sem_timedwait        
+      0.0           632916         39     16228.6       4537.0      2874     233199      44639.9  fopen                
+      0.0           400002         65      6153.9       6029.0      3936       9674        703.7  fopen64              
+      0.0           367430          2    183715.0     183715.0    173960     193470      13795.7  pthread_create       
+      0.0           274211         60      4570.2       4266.5      1813      13811       2254.4  open64               
+      0.0           128091         76      1685.4       1517.0      1042       4137        558.7  read                 
+      0.0            94882          2     47441.0      47441.0     28092      66790      27363.6  fgets                
+      0.0            66257         33      2007.8       1442.0      1012       6740       1499.1  fclose               
+      0.0            35002         13      2692.5       2383.0      1533       5208       1032.9  write                
+      0.0            32009          6      5334.8       5223.0      2644       7872       2134.3  open                 
+      0.0            27321          7      3903.0       1983.0      1082       8683       3275.3  fputc                
+      0.0            16384          2      8192.0       8192.0      6049      10335       3030.7  socket               
+      0.0            16094          3      5364.7       6520.0      2854       6720       2176.6  pipe2                
+      0.0            13049          1     13049.0      13049.0     13049      13049          0.0  connect              
+      0.0             8693          3      2897.7       1632.0      1212       5849       2564.5  fputs                
+      0.0             4287          2      2143.5       2143.5      1162       3125       1388.1  fwrite               
+      0.0             3876          3      1292.0       1392.0      1072       1412        190.8  fcntl                
+      0.0             1853          1      1853.0       1853.0      1853       1853          0.0  bind                 
+      0.0             1412          1      1412.0       1412.0      1412       1412          0.0  pthread_mutex_trylock
+      0.0             1012          1      1012.0       1012.0      1012       1012          0.0  listen               
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)   Med (ns)   Min (ns)  Max (ns)   StdDev (ns)                Name               
+ --------  ---------------  ---------  ----------  ---------  --------  ---------  -----------  ---------------------------------
+     90.0       8644272105       9464    913384.6     5969.0       581  150617898    4612440.3  cudaStreamSynchronize            
+      5.5        527196211       9426     55930.0     2513.0       561  150938208    1567642.8  cudaLaunchKernel                 
+      2.7        261330684       4963     52655.8     2384.0       591   23221039     410313.7  cudaMemcpyAsync                  
+      0.7         69546841          4  17386710.3    65688.0     10115   69405350   34679104.1  cudaMemGetInfo                   
+      0.6         54729096        641     85380.8    82213.0     75483     397726      25014.6  cudaGraphLaunch_v10000           
+      0.2         16549032         10   1654903.2  1676872.0    897915    3254245     674993.9  cuLibraryLoadData                
+      0.1         11019939          4   2754984.8  2008544.0   1192787    5810064    2074402.5  cudaMallocHost                   
+      0.1          5193612          9    577068.0   145638.0     15623    2727066     939906.3  cudaFree                         
+      0.0          4288726          4   1072181.5   690625.0    621041    2286435     810204.8  cudaFreeHost                     
+      0.0          3265943          1   3265943.0  3265943.0   3265943    3265943          0.0  cudaGraphInstantiate_v12000      
+      0.0          2707615          8    338451.9   188612.0      3986     978265     330497.4  cudaMalloc                       
+      0.0          1595841          1   1595841.0  1595841.0   1595841    1595841          0.0  cudaGraphExecDestroy_v10000      
+      0.0           981622          6    163603.7    90175.5     55584     559889     195591.8  cuMemSetAccess                   
+      0.0           703294          6    117215.7   116870.5    100500     136675      16380.4  cudaGetDeviceProperties_v2_v12000
+      0.0           438588          2    219294.0   219294.0    111708     326880     152149.6  cuMemUnmap                       
+      0.0           300460          1    300460.0   300460.0    300460     300460          0.0  cudaGraphDestroy_v10000          
+      0.0           295714          6     49285.7    27276.0     15033     110104      42102.1  cuMemCreate                      
+      0.0           149196        838       178.0      131.0        60        801        113.9  cuGetProcAddress_v2              
+      0.0            82585          2     41292.5    41292.5     36806      45779       6344.9  cudaMemsetAsync                  
+      0.0            69754          1     69754.0    69754.0     69754      69754          0.0  cudaGraphExecUpdate_v10020       
+      0.0            42655         10      4265.5     5353.0       491       7492       2781.7  cuLibraryGetKernel               
+      0.0            38027          2     19013.5    19013.5     14702      23325       6097.4  cudaStreamCreateWithFlags        
+      0.0            36675          2     18337.5    18337.5     15704      20971       3724.3  cudaStreamDestroy                
+      0.0            22894          2     11447.0    11447.0      9384      13510       2917.5  cuMemAddressReserve              
+      0.0            19029          2      9514.5     9514.5      9454       9575         85.6  cuMemAddressFree                 
+      0.0            18309         18      1017.2      221.0       190       8563       2025.4  cudaEventCreateWithFlags         
+      0.0            17997          6      2999.5     2458.5      1052       6009       1909.6  cuMemMap                         
+      0.0            16184          1     16184.0    16184.0     16184      16184          0.0  cudaStreamEndCapture_v10000      
+      0.0            13251          4      3312.8     1853.0      1102       8443       3462.7  cudaDeviceSynchronize            
+      0.0            10827          1     10827.0    10827.0     10827      10827          0.0  cudaStreamBeginCapture_v10000    
+      0.0             8651         18       480.6      300.0       171       2675        625.8  cudaEventDestroy                 
+      0.0             5588          4      1397.0     1317.0       972       1982        424.1  cuInit                           
+      0.0             3015          1      3015.0     3015.0      3015       3015          0.0  cuMemGetAllocationGranularity    
+      0.0             1113          6       185.5      185.5        80        331         83.0  cuMemRelease                     
+      0.0             1053          3       351.0      100.0        91        862        442.6  cuModuleGetLoadingMode           
+      0.0              791          2       395.5      395.5       190        601        290.6  cudaGetDriverEntryPoint_v11030   
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/cuda_gpu_kern_sum.py]... 
+
+ ** CUDA GPU Kernel Summary (cuda_gpu_kern_sum):
+
+ Time (%)  Total Time (ns)  Instances  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)                                                  Name                                                
+ --------  ---------------  ---------  --------  --------  --------  --------  -----------  ----------------------------------------------------------------------------------------------------
+     67.5        849234613       1284  661397.7  411424.0    118752   1211552     460642.9  void mul_mat_q<(ggml_type)13, (int)128, (bool)0>(const char *, const int *, const int *, const int …
+     11.9        149189519        210  710426.3  138864.0    120416   1326847     591247.5  void mul_mat_q<(ggml_type)14, (int)128, (bool)0>(const char *, const int *, const int *, const int …
+      3.4         43253843        216  200249.3  200224.0    199904    200992        173.9  void soft_max_f32<(bool)1, (int)512, (int)512, float>(const float *, const T4 *, const float *, flo…
+      2.3         29212058        432   67620.5   67568.0     34784    100704      32734.8  void convert_unary<float, __half>(const void *, T2 *, long, long, long, long, long, long)           
+      1.7         21385785       1284   16655.6   13712.0     12064     44384       8469.4  void quantize_mmq_q8_1<(mmq_q8_1_ds_layout)1>(const float *, const int *, void *, long, long, long,…
+      1.7         20841014        432   48243.1   48160.0     18848     77984      29170.2  void rms_norm_f32<(int)256, (bool)1, (bool)0>(const float *, float *, int, long, long, long, float,…
+      1.7         20760283       1284   16168.4   17248.0     11648     18464       2113.5  void mul_mat_q_stream_k_fixup<(ggml_type)13, (int)128, (bool)0>(const int *, const int *, float *, …
+      1.6         20442202        210   97343.8   97344.0     97024     97696        132.0  void unary_gated_op_kernel<&op_silu, float>(const T2 *, const T2 *, T2 *, long, long, long, long)   
+      1.3         16173275        216   74876.3   74864.0     74592     75296         91.0  void cpy_scalar<&cpy_1_scalar<float, float>>(const char *, char *, int, int, int, int, int, int, in…
+      1.2         15123577        216   70016.6   70016.0     69280     71136        335.6  ampere_s1688gemm_fp16_256x128_ldg8_stages_32x1_tn                                                   
+      1.1         13340415        438   30457.6   31072.0      5440     37280       4167.1  void rms_norm_f32<(int)1024, (bool)1, (bool)0>(const float *, float *, int, long, long, long, float…
+      0.9         10976989        426   25767.6   26144.0      2528     26560       2789.2  void k_bin_bcast<&op_add, float, float, float, const float *>(const T2 *, const T3 *, T4 *, int, in…
+      0.6          8155486        216   37756.9   37728.0     36928     39200        320.3  ampere_h16816gemm_128x128_ldg8_stages_32x5_tn                                                       
+      0.6          8065248        216   37339.1   37296.0     36832     38176        267.6  void k_set_rows<float, long, __half>(const T1 *, const T2 *, T3 *, long, long, long, long, long, lo…
+      0.5          6325311        210   30120.5   17840.0     16800     44352      13281.2  void quantize_mmq_q8_1<(mmq_q8_1_ds_layout)0>(const float *, const int *, void *, long, long, long,…
+      0.5          5936288          6  989381.3  989184.0    988896    990400        558.5  void mul_mat_vec_q<(ggml_type)14, (int)1, (bool)0>(const void *, const void *, const int *, ggml_cu…
+      0.5          5926684        216   27438.4   27423.5     26752     28192        334.5  void rope_neox<(bool)1, (bool)0, float, float>(const T3 *, T4 *, int, int, int, int, int, const int…
+      0.4          5145696        216   23822.7   23808.0     23552     24032         69.8  void convert_unary<__half, float>(const void *, T2 *, long, long, long, long, long, long)           
+      0.2          3048896        210   14518.6   13520.0     11936     17280       1945.1  void mul_mat_q_stream_k_fixup<(ggml_type)14, (int)128, (bool)0>(const int *, const int *, float *, …
+      0.2          2764799        216   12800.0   12800.0     11616     13920        408.1  void rope_neox<(bool)1, (bool)0, float, __half>(const T3 *, T4 *, int, int, int, int, int, const in…
+      0.1           955007        432    2210.7    2224.0      2015      2560        179.4  k_compute_batched_ptrs(const void *, const void *, char *, const void **, void **, long, long, long…
+      0.1           748512          6  124752.0  124784.0    124224    125280        408.2  void mul_mat_vec_q<(ggml_type)13, (int)1, (bool)1>(const void *, const void *, const int *, ggml_cu…
+      0.0           496544          6   82757.3   82736.0     82624     82912        117.0  void mul_mat_vec_q<(ggml_type)14, (int)1, (bool)1>(const void *, const void *, const int *, ggml_cu…
+      0.0            45760         18    2542.2    2336.0      2304      3072        314.2  quantize_q8_1(const float *, void *, long, long, long, long, long, unsigned int, uint3)             
+      0.0            37632         12    3136.0    3136.0      2880      3456        238.7  void k_get_rows_float<float, float>(const T1 *, const int *, T2 *, long, long, long, unsigned long,…
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/cuda_gpu_mem_time_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)           Operation          
+ --------  ---------------  -----  --------  --------  --------  --------  -----------  ----------------------------
+     94.1        257295635   4280   60115.8    1472.0       864  23199833     441427.4  [CUDA memcpy Host-to-Device]
+      5.9         16029916    647   24775.8   24768.0     24384     27232        250.7  [CUDA memcpy Device-to-Host]
+      0.0           128576      2   64288.0   64288.0     45184     83392      27017.1  [CUDA memset]               
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/cuda_gpu_mem_size_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Size) (cuda_gpu_mem_size_sum):
+
+ Total (MB)  Count  Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)           Operation          
+ ----------  -----  --------  --------  --------  --------  -----------  ----------------------------
+   5556.902   4280     1.298     0.008     0.000   510.505        9.700  [CUDA memcpy Host-to-Device]
+    393.210    647     0.608     0.608     0.608     0.608        0.000  [CUDA memcpy Device-to-Host]
+    113.246      2    56.623    56.623    37.749    75.497       26.692  [CUDA memset]               
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/openmp_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain OpenMP event data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/opengl_khr_range_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain KHR Extension (KHR_DEBUG) data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/opengl_khr_gpu_range_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain GPU KHR Extension (KHR_DEBUG) data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/vulkan_marker_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain Vulkan Debug Extension (Vulkan Debug Util) data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/vulkan_gpu_marker_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain GPU Vulkan Debug Extension (GPU Vulkan Debug markers) data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/dx11_pix_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain DX11 CPU debug markers.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/dx12_gpu_marker_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain DX12 GPU debug markers.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/dx12_pix_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain DX12 CPU debug markers.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/wddm_queue_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain WDDM context data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/um_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain CUDA Unified Memory CPU page faults data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/um_total_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain CUDA Unified Memory CPU page faults data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/um_cpu_page_faults_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain CUDA Unified Memory CPU page faults data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/openacc_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain OpenACC event data.
+
+Processing [llama-gpu-profile.sqlite] with [/usr/lib/nsight-systems/host-linux-x64/reports/syscall_sum.py]... 
+SKIPPED: llama-gpu-profile.sqlite does not contain syscall data.
+

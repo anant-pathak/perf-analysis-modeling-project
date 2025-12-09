@@ -1,0 +1,269 @@
+Total: 222442 samples
+  102913  46.3%  46.3%   102913  46.3% sgemm_kernel_COOPERLAKE
+   32239  14.5%  60.8%    32239  14.5% ggml_gemm_q4_K_8x8_q8_K
+   28312  12.7%  73.5%    28312  12.7% ggml_gemv_q4_K_8x8_q8_K
+   23960  10.8%  84.3%    23961  10.8% do_spin (inline)
+   17025   7.7%  91.9%    17025   7.7% ggml_vec_dot_q6_K_q8_K
+    3508   1.6%  93.5%     3508   1.6% sgemm_incopy_COOPERLAKE
+    1609   0.7%  94.2%     1609   0.7% sgemm_oncopy_COOPERLAKE
+    1430   0.6%  94.9%     1430   0.6% __memset_avx512_unaligned_erms
+    1383   0.6%  95.5%     1944   0.9% repack_q4_K_to_q4_K_8_bl
+    1248   0.6%  96.0%     1411   0.6% void ::tinyBLAS::gemm_bloc
+    1135   0.5%  96.5%     1135   0.5% __memmove_avx512_unaligned_erms
+     823   0.4%  96.9%      823   0.4% dequantize_row_q6_K
+     758   0.3%  97.3%      758   0.3% ggml_vec_dot_f16
+     711   0.3%  97.6%      711   0.3% ggml_cpu_fp32_to_fp16
+     648   0.3%  97.9%      648   0.3% ggml_threadpool_chunk_add
+     645   0.3%  98.2%      645   0.3% gomp_barrier_wait_start (inline)
+     548   0.2%  98.4%      548   0.2% ggml_quantize_mat_q8_K_4x8
+     509   0.2%  98.6%    21286   9.6% ggml_compute_forward_mul_mat
+     385   0.2%  98.8%      510   0.2% void ggml_compute_forward_rope_flt
+     358   0.2%  99.0%      438   0.2% ggml_compute_forward_soft_max
+     281   0.1%  99.1%      284   0.1% ggml_compute_forward_add_non_quantized
+     218   0.1%  99.2%      399   0.2% ggml_compute_forward_rms_norm
+     195   0.1%  99.3%      195   0.1% ggml_vec_swiglu_f32
+     185   0.1%  99.4%      185   0.1% __GI___munmap
+     185   0.1%  99.4%      214   0.1% __pthread_create_2_1
+     123   0.1%  99.5%      123   0.1% f64xsubf128@@GLIBC_2.28
+     116   0.1%  99.6%      117   0.1% ggml_compute_forward_mul
+     115   0.1%  99.6%   102845  46.2% ggml_graph_compute_thread.isra.0
+     104   0.0%  99.7%      104   0.0% quantize_row_q8_K_ref
+      75   0.0%  99.7%       75   0.0% ggml_vec_soft_max_f32
+      73   0.0%  99.7%    64077  28.8% ggml::cpu::repack::tensor_traits::compute_forward
+      44   0.0%  99.7%       44   0.0% futex_wake (inline)
+      35   0.0%  99.8%       35   0.0% _init@e000
+      30   0.0%  99.8%      237   0.1% ggml_compute_forward_set_rows
+      29   0.0%  99.8%   106807  48.0% start_thread
+      28   0.0%  99.8%    17305   7.8% gomp_team_barrier_wait_end
+      25   0.0%  99.8%       25   0.0% ggml::cpu::repack::extra_buffer_type::get_tensor_traits
+      22   0.0%  99.8%       22   0.0% __GI___mprotect
+      21   0.0%  99.8%       39   0.0% futex_wait (inline)
+      21   0.0%  99.8%       21   0.0% ggml_barrier
+      18   0.0%  99.8%       18   0.0% __futex_wait (inline)
+      17   0.0%  99.8%       17   0.0% ggml_fp16_to_fp32_row
+      16   0.0%  99.9%   109295  49.1% sgemm_tn
+      14   0.0%  99.9%       14   0.0% _int_malloc
+      12   0.0%  99.9%       22   0.0% unicode_utf8_to_byte
+      11   0.0%  99.9%       38   0.0% ggml_graph_compute._omp_fn.0
+      11   0.0%  99.9%       16   0.0% ggml_row_size
+      11   0.0%  99.9%      116   0.1% llama_vocab::impl::load
+      11   0.0%  99.9%       29   0.0% llama_vocab::~llama_vocab
+      10   0.0%  99.9%       10   0.0% __strlen_evex
+       9   0.0%  99.9%       17   0.0% _int_free
+       8   0.0%  99.9%      115   0.1% ggml_compute_forward_dup_bytes
+       8   0.0%  99.9%        8   0.0% malloc_consolidate
+       7   0.0%  99.9%        7   0.0% __GI___mmap64
+       7   0.0%  99.9%        7   0.0% __memcmp_evex_movbe
+       7   0.0%  99.9%     1020   0.5% __pthread_once_slow
+       7   0.0%  99.9%        7   0.0% ggml_is_empty
+       7   0.0%  99.9%       16   0.0% std::__detail::_Map_base::operator[]
+       7   0.0%  99.9%       18   0.0% std::operator==
+       6   0.0%  99.9%        6   0.0% std::_Hashtable::_M_find_before_node
+       5   0.0%  99.9%        9   0.0% __GI__IO_fread
+       5   0.0%  99.9%       26   0.0% __free
+       5   0.0%  99.9%    64106  28.8% ggml_cpu_extra_compute_forward
+       5   0.0%  99.9%       31   0.0% gomp_team_start
+       5   0.0%  99.9%       16   0.0% replace_all
+       5   0.0%  99.9%       11   0.0% std::__cxx11::basic_string::_M_construct [clone .isra.0]
+       4   0.0%  99.9%        4   0.0% ggml_compute_forward_rope
+       4   0.0%  99.9%       10   0.0% ggml_graph_plan
+       4   0.0%  99.9%        4   0.0% ggml_type_size
+       4   0.0%  99.9%        4   0.0% std::_Hash_bytes (inline)
+       4   0.0%  99.9%        5   0.0% unicode_cpts_from_utf8
+       3   0.0%  99.9%        3   0.0% __memchr_evex
+       3   0.0% 100.0%        3   0.0% ggml_blck_size
+       3   0.0% 100.0%        3   0.0% ggml_is_contiguous_0
+       3   0.0% 100.0%        3   0.0% ggml_is_numa
+       3   0.0% 100.0%        3   0.0% gguf_get_arr_str
+       3   0.0% 100.0%       33   0.0% gguf_kv_to_str[abi:cxx11]
+       3   0.0% 100.0%        3   0.0% load_bytes (inline)
+       3   0.0% 100.0%        7   0.0% std::_Hashtable::_M_rehash
+       3   0.0% 100.0%        4   0.0% std::__cxx11::basic_string::push_back
+       2   0.0% 100.0%        2   0.0% GOMP_barrier
+       2   0.0% 100.0%        2   0.0% __GI__IO_sgetn
+       2   0.0% 100.0%        2   0.0% __log2_finite@GLIBC_2.15
+       2   0.0% 100.0%        3   0.0% __vfprintf_internal
+       2   0.0% 100.0%        3   0.0% __vfscanf_internal
+       2   0.0% 100.0%       19   0.0% bool gguf_read_emplace_helper@76930
+       2   0.0% 100.0%        2   0.0% dequantize_row_q4_K
+       2   0.0% 100.0%   109714  49.3% ggml_backend_blas_graph_compute
+       2   0.0% 100.0%        3   0.0% ggml_can_repeat
+       2   0.0% 100.0%        3   0.0% ggml_cpu_extra_work_size
+       2   0.0% 100.0%        2   0.0% ggml_gallocr_reserve_n
+       2   0.0% 100.0%        5   0.0% ggml_rope_yarn_corr_dims
+       2   0.0% 100.0%        2   0.0% gomp_init_task
+       2   0.0% 100.0%        2   0.0% shift_mix (inline)
+       2   0.0% 100.0%        4   0.0% std::__cxx11::basic_string::_M_append
+       2   0.0% 100.0%        5   0.0% std::__cxx11::basic_string::basic_string [clone .constprop.0]
+       2   0.0% 100.0%        5   0.0% std::char_traits::find (inline)
+       2   0.0% 100.0%        3   0.0% std::ostream::sentry::sentry
+       1   0.0% 100.0%        2   0.0% _IO_file_xsgetn
+       1   0.0% 100.0%        1   0.0% __GI__IO_setb
+       1   0.0% 100.0%       12   0.0% __GI___libc_malloc
+       1   0.0% 100.0%        1   0.0% __GI___pthread_disable_asynccancel
+       1   0.0% 100.0%        3   0.0% __GI__dl_deallocate_tls
+       1   0.0% 100.0%        1   0.0% ____strtoll_l_internal
+       1   0.0% 100.0%        1   0.0% ___pthread_mutex_unlock
+       1   0.0% 100.0%        1   0.0% __libc_read
+       1   0.0% 100.0%        2   0.0% __res_thread_freeres
+       1   0.0% 100.0%        1   0.0% __resolv_context_freeres
+       1   0.0% 100.0%        1   0.0% __tls_get_addr
+       1   0.0% 100.0%        1   0.0% _init@60000
+       1   0.0% 100.0%        1   0.0% _init@a5000
+       1   0.0% 100.0%   109297  49.1% cblas_sgemm
+       1   0.0% 100.0%        1   0.0% cpu_relax (inline)
+       1   0.0% 100.0%   113459  51.0% ggml_backend_sched_graph_compute_async
+       1   0.0% 100.0%        1   0.0% ggml_compute_forward_cont
+       1   0.0% 100.0%      196   0.1% ggml_compute_forward_glu
+       1   0.0% 100.0%        1   0.0% ggml_get_glu_op
+       1   0.0% 100.0%        1   0.0% ggml_nelements
+       1   0.0% 100.0%        1   0.0% ggml_new_tensor
+       1   0.0% 100.0%        1   0.0% ggml_nrows
+       1   0.0% 100.0%        1   0.0% gomp_barrier_wait_final_start (inline)
+       1   0.0% 100.0%        1   0.0% gomp_finish_task (inline)
+       1   0.0% 100.0%        2   0.0% gomp_team_end
+       1   0.0% 100.0%   105944  47.6% gomp_thread_start
+       1   0.0% 100.0%        1   0.0% hack_digit
+       1   0.0% 100.0%        1   0.0% llama_batch_allocr::init
+       1   0.0% 100.0%        1   0.0% llama_kv_cache::set_input_kq_mask
+       1   0.0% 100.0%        1   0.0% llama_kv_cache::set_input_v_idxs
+       1   0.0% 100.0%        2   0.0% llama_model_loader::create_tensor
+       1   0.0% 100.0%       35   0.0% llama_vocab::impl::token_to_piece
+       1   0.0% 100.0%     1249   0.6% sgemm_beta_COOPERLAKE
+       1   0.0% 100.0%       10   0.0% std::_Hash_bytes
+       1   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::_M_check_length (inline)
+       1   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::_M_construct
+       1   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::_M_dispose
+       1   0.0% 100.0%        3   0.0% std::__cxx11::basic_string::_M_replace_aux
+       1   0.0% 100.0%        6   0.0% std::__cxx11::basic_string::find
+       1   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::operator= [clone .isra.0]
+       1   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::resize
+       1   0.0% 100.0%        4   0.0% std::__ostream_insert
+       1   0.0% 100.0%        1   0.0% std::basic_ios::tie (inline)
+       1   0.0% 100.0%        1   0.0% std::basic_streambuf::pptr (inline)
+       1   0.0% 100.0%        2   0.0% std::basic_streambuf::sputc (inline)
+       1   0.0% 100.0%        1   0.0% std::basic_streambuf::xsputn
+       1   0.0% 100.0%        1   0.0% std::char_traits::assign (inline)
+       1   0.0% 100.0%        4   0.0% std::ostream::put
+       1   0.0% 100.0%        2   0.0% std::vector::_M_default_append
+       1   0.0% 100.0%        1   0.0% std::vector::~vector
+       1   0.0% 100.0%        1   0.0% unicode_cpt_from_utf8
+       1   0.0% 100.0%        5   0.0% unicode_cpt_to_utf8[abi:cxx11]
+       1   0.0% 100.0%     1503   0.7% void ::tinyBLAS::gemm [clone .constprop.0]
+       0   0.0% 100.0%     3730   1.7% GOMP_parallel
+       0   0.0% 100.0%        1   0.0% _IO_str_init_static_internal
+       0   0.0% 100.0%        1   0.0% __GI__IO_file_underflow
+       0   0.0% 100.0%        4   0.0% __GI___isoc99_sscanf
+       0   0.0% 100.0%      183   0.1% __GI___nptl_deallocate_stack
+       0   0.0% 100.0%        1   0.0% __GI__dl_allocate_tls
+       0   0.0% 100.0%        1   0.0% __calloc
+       0   0.0% 100.0%   106807  48.0% __clone3
+       0   0.0% 100.0%        1   0.0% __futex_abstimed_wait_common
+       0   0.0% 100.0%   115635  52.0% __libc_start_call_main
+       0   0.0% 100.0%   115635  52.0% __libc_start_main_alias_2
+       0   0.0% 100.0%        2   0.0% __libc_thread_freeres
+       0   0.0% 100.0%      183   0.1% __nptl_free_stacks
+       0   0.0% 100.0%        1   0.0% __once_proxy
+       0   0.0% 100.0%        1   0.0% __posix_memalign
+       0   0.0% 100.0%        1   0.0% __printf_fp_l
+       0   0.0% 100.0%      184   0.1% __pthread_clockjoin_ex
+       0   0.0% 100.0%        3   0.0% __vsnprintf_internal
+       0   0.0% 100.0%        1   0.0% _int_memalign
+       0   0.0% 100.0%        1   0.0% _mid_memalign.constprop.0
+       0   0.0% 100.0%   115635  52.0% _start
+       0   0.0% 100.0%        1   0.0% allocate_dtv
+       0   0.0% 100.0%        2   0.0% bool gguf_read_emplace_helper@7c930
+       0   0.0% 100.0%    24000  10.8% do_wait (inline)
+       0   0.0% 100.0%      832   0.4% execute_native_thread_routine
+       0   0.0% 100.0%        1   0.0% ggml_aligned_malloc
+       0   0.0% 100.0%        1   0.0% ggml_backend_buffer_free
+       0   0.0% 100.0%     3744   1.7% ggml_backend_cpu_graph_compute
+       0   0.0% 100.0%     1944   0.9% ggml_backend_cpu_repack_buffer_set_tensor
+       0   0.0% 100.0%        2   0.0% ggml_backend_sched_new
+       0   0.0% 100.0%        2   0.0% ggml_backend_sched_reserve
+       0   0.0% 100.0%        2   0.0% ggml_compute_forward_get_rows
+       0   0.0% 100.0%        2   0.0% ggml_cpu_init
+       0   0.0% 100.0%        2   0.0% ggml_format_name
+       0   0.0% 100.0%     3734   1.7% ggml_graph_compute
+       0   0.0% 100.0%        2   0.0% ggml_init
+       0   0.0% 100.0%        1   0.0% ggml_permute
+       0   0.0% 100.0%        1   0.0% ggml_view_2d
+       0   0.0% 100.0%        1   0.0% gguf_data_to_str
+       0   0.0% 100.0%        1   0.0% gguf_free
+       0   0.0% 100.0%       21   0.0% gguf_init_from_file
+       0   0.0% 100.0%       21   0.0% gguf_init_from_file_impl
+       0   0.0% 100.0%        5   0.0% gguf_kv::gguf_kv
+       0   0.0% 100.0%        2   0.0% gomp_barrier_wait
+       0   0.0% 100.0%     6767   3.0% gomp_barrier_wait_end
+       0   0.0% 100.0%       23   0.0% gomp_barrier_wait_end (inline)
+       0   0.0% 100.0%     6769   3.0% gomp_simple_barrier_wait (inline)
+       0   0.0% 100.0%      643   0.3% gomp_team_barrier_wait
+       0   0.0% 100.0%        1   0.0% gomp_team_barrier_wait_final
+       0   0.0% 100.0%   113462  51.0% llama_context::decode
+       0   0.0% 100.0%   113459  51.0% llama_context::graph_compute
+       0   0.0% 100.0%        4   0.0% llama_context::graph_reserve
+       0   0.0% 100.0%       19   0.0% llama_context::llama_context
+       0   0.0% 100.0%   113461  51.0% llama_context::process_ubatch
+       0   0.0% 100.0%   113462  51.0% llama_decode
+       0   0.0% 100.0%       19   0.0% llama_init_from_model
+       0   0.0% 100.0%        1   0.0% llama_kv_cache::cpy_k
+       0   0.0% 100.0%       12   0.0% llama_kv_cache::llama_kv_cache
+       0   0.0% 100.0%        1   0.0% llama_log_internal
+       0   0.0% 100.0%        1   0.0% llama_log_internal_v
+       0   0.0% 100.0%        1   0.0% llama_mmap::impl::unmap_fragment
+       0   0.0% 100.0%        1   0.0% llama_mmap::llama_mmap
+       0   0.0% 100.0%        1   0.0% llama_mmap::~llama_mmap
+       0   0.0% 100.0%        2   0.0% llama_model::build_graph
+       0   0.0% 100.0%       12   0.0% llama_model::create_memory
+       0   0.0% 100.0%     1949   0.9% llama_model::load_tensors
+       0   0.0% 100.0%        2   0.0% llama_model::load_tensors::{lambda#1}::operator [clone .constprop.0]
+       0   0.0% 100.0%      116   0.1% llama_model::load_vocab
+       0   0.0% 100.0%       31   0.0% llama_model::~llama_model
+       0   0.0% 100.0%       31   0.0% llama_model_free
+       0   0.0% 100.0%     2123   1.0% llama_model_load_from_file
+       0   0.0% 100.0%     2123   1.0% llama_model_load_from_file_impl
+       0   0.0% 100.0%        1   0.0% llama_model_loader::get_weight
+       0   0.0% 100.0%        1   0.0% llama_model_loader::init_mappings
+       0   0.0% 100.0%       57   0.0% llama_model_loader::llama_model_loader
+       0   0.0% 100.0%     1946   0.9% llama_model_loader::load_all_data
+       0   0.0% 100.0%        1   0.0% llama_vocab::impl::token_to_piece::{lambda#1}::operator
+       0   0.0% 100.0%       38   0.0% llama_vocab::impl::token_to_piece_for_cache[abi:cxx11]
+       0   0.0% 100.0%        1   0.0% llama_vocab::impl::tokenize
+       0   0.0% 100.0%     1575   0.7% llamafile_sgemm
+       0   0.0% 100.0%        2   0.0% llm_build_qwen2::llm_build_qwen2
+       0   0.0% 100.0%        2   0.0% llm_graph_context::build_attn
+       0   0.0% 100.0%        1   0.0% llm_graph_context::build_attn_mha
+       0   0.0% 100.0%        1   0.0% llm_graph_input_attn_kv::set_input [clone .localalias]
+       0   0.0% 100.0%        2   0.0% llm_graph_result::set_inputs
+       0   0.0% 100.0%        1   0.0% llm_tokenizer_bpe_session::tokenize
+       0   0.0% 100.0%   115635  52.0% main
+       0   0.0% 100.0%       11   0.0% operator new
+       0   0.0% 100.0%      828   0.4% std::_Function_handler::_M_invoke
+       0   0.0% 100.0%        2   0.0% std::__cxx11::basic_string::_M_mutate
+       0   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::_M_replace
+       0   0.0% 100.0%        1   0.0% std::__cxx11::basic_string::_M_set_length (inline)
+       0   0.0% 100.0%        3   0.0% std::__cxx11::basic_string::_S_copy (inline)
+       0   0.0% 100.0%        1   0.0% std::__cxx11::collate::do_transform
+       0   0.0% 100.0%        1   0.0% std::__detail::_BracketMatcher::_M_ready
+       0   0.0% 100.0%        1   0.0% std::__detail::_Compiler::_Compiler
+       0   0.0% 100.0%        1   0.0% std::__detail::_Compiler::_M_alternative
+       0   0.0% 100.0%        1   0.0% std::__detail::_Compiler::_M_atom
+       0   0.0% 100.0%        1   0.0% std::__detail::_Compiler::_M_disjunction
+       0   0.0% 100.0%        1   0.0% std::__detail::_Compiler::_M_insert_character_class_matcher
+       0   0.0% 100.0%      189   0.1% std::__future_base::_Async_state_commonV2::_M_complete_async
+       0   0.0% 100.0%      831   0.4% std::__future_base::_Async_state_impl::_M_run
+       0   0.0% 100.0%      828   0.4% std::__future_base::_State_baseV2::_M_do_set
+       0   0.0% 100.0%        1   0.0% std::__ostream_write (inline)
+       0   0.0% 100.0%        1   0.0% std::basic_streambuf::sputn (inline)
+       0   0.0% 100.0%        3   0.0% std::char_traits::copy (inline)
+       0   0.0% 100.0%        1   0.0% std::default_delete::operator (inline)
+       0   0.0% 100.0%      213   0.1% std::thread::_M_start_thread
+       0   0.0% 100.0%      213   0.1% std::thread::_M_start_thread (inline)
+       0   0.0% 100.0%      184   0.1% std::thread::join
+       0   0.0% 100.0%      184   0.1% std::thread::join (inline)
+       0   0.0% 100.0%        1   0.0% std::unique_ptr::~unique_ptr (inline)
+       0   0.0% 100.0%        5   0.0% std::vector::operator= [clone .isra.0]
+       0   0.0% 100.0%        1   0.0% tcache_init.part.0
+       0   0.0% 100.0%   111275  50.0% test_prompt
+       0   0.0% 100.0%        1   0.0% unicode_regex_split
+       0   0.0% 100.0%        1   0.0% unicode_regex_split_stl
